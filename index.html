@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark" data-pal="royal" data-motion="on">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#060b1a">
+<title>UGC NET JRF Paper I · Wise Choice</title>
+<link rel="stylesheet" href="style.css">
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+</head>
+<body data-view="home">
+<div class="bg"><i></i><i></i><i></i><i></i></div>
+
+<!-- floating glass header island -->
+<header>
+  <span class="brand"><img class="mk" src="logo.png" alt="Wise Choice logo" width="44" height="44"><span><b>Wise Choice</b><small>Your Shortcut through the Syllabus!</small></span></span>
+  <button class="sw" id="tgl" data-act="theme" aria-label="Dark / light mode"><i></i></button>
+</header>
+<main id="app"></main>
+
+<!-- question palette drawer -->
+<div class="shade" id="shade" data-act="closegrid"></div>
+<div id="drawer" aria-label="Question palette"></div>
+
+<!-- insights / revision / settings sheet -->
+<div class="shade" id="shade2" data-act="closesheet"></div>
+<div id="sheet" aria-label="Insights, revision and settings">
+  <div class="grab"></div>
+  <div class="shead"><b>Insights &amp; Settings</b><button class="btn g s" data-act="closesheet">✕ Close</button></div>
+  <div class="tabs" id="stabs"></div>
+  <div id="sbody"></div>
+</div>
+
+<!-- rough pad + calculator -->
+<div id="tools" aria-label="Rough work pad and calculator">
+  <div class="thead">
+    <div class="row"><button class="chip on" id="tabPad" data-act="ttab" data-v="pad">✏️ Rough pad</button><button class="chip" id="tabCalc" data-act="ttab" data-v="calc">🧮 Calculator</button></div>
+    <button class="btn g s" data-act="toolsclose">✕ Close</button>
+  </div>
+  <div id="padWrap">
+    <div class="ptools">
+      <button class="dot on" data-pc="auto" data-act="padcol" data-v="auto" style="background:var(--tx)" aria-label="Default ink"></button>
+      <button class="dot" data-pc="#ef4444" data-act="padcol" data-v="#ef4444" style="background:#ef4444" aria-label="Red"></button>
+      <button class="dot" data-pc="#3b82f6" data-act="padcol" data-v="#3b82f6" style="background:#3b82f6" aria-label="Blue"></button>
+      <button class="dot" data-pc="#10b981" data-act="padcol" data-v="#10b981" style="background:#10b981" aria-label="Green"></button>
+      <button class="chip" id="bErase" data-act="paderase">🧽 Eraser</button>
+      <button class="chip" data-act="padundo">↩ Undo</button>
+      <button class="chip" data-act="padclear">Clear</button>
+    </div>
+    <canvas id="pad"></canvas>
+  </div>
+  <div id="calcWrap" style="display:none">
+    <div class="cdisp"><small id="cexp"></small><b id="cval">0</b></div>
+    <div class="ckeys" id="ckeys"></div>
+  </div>
+</div>
+
+<input type="file" id="imp" accept=".json,application/json" style="display:none">
+
+<!-- floating action dock: navigation on every screen, test tools during a test -->
+<nav id="dock" data-mode="nav" aria-label="Quick actions">
+  <button class="dk n" id="dHome" data-act="home" aria-label="Home"><i>🏠</i><span>Home</span></button>
+  <button class="dk n" id="dIns"  data-act="sheet" data-v="all" aria-label="Insights"><i>📈</i><span>Insights</span></button>
+  <button class="dk go n" data-act="go" aria-label="Start"><i>▶</i></button>
+  <button class="dk n" id="dRev"  data-act="sheet" data-v="sav" aria-label="Revision"><i>🔖</i><span>Revise</span></button>
+  <button class="dk n" id="dSet"  data-act="sheet" data-v="set" aria-label="Settings"><i>⚙️</i><span>Settings</span></button>
+
+  <button class="dk t" id="bGrid" data-act="grid" aria-label="Question palette"><i>▦</i><span>Palette</span></button>
+  <button class="dk t" id="bPad"  data-act="tools" data-v="pad" aria-label="Rough pad"><i>✏️</i><span>Pad</span></button>
+  <button class="dk t" id="bCalc" data-act="tools" data-v="calc" aria-label="Calculator"><i>🧮</i><span>Calc</span></button>
+  <button class="dk t" data-act="sheet" data-v="all" aria-label="Insights"><i>📈</i><span>Stats</span></button>
+  <button class="dk t danger" id="bExit" data-act="exit" aria-label="Exit test"><i>✕</i><span>Exit</span></button>
+</nav>
+
+<!-- overlays -->
+<div class="ov" id="pause"><div class="ovc">
+  <div class="big">⏸</div><h2>Test paused</h2>
+  <p class="mu" style="margin:6px 0 16px">The timer is stopped · <b id="pLeft"></b> left.<br>Questions are hidden while paused.</p>
+  <div class="row" style="justify-content:center"><button class="btn" data-act="unpause">▶ Resume</button><button class="btn g" data-act="pauseexit">Save &amp; exit</button></div>
+</div></div>
+<div class="ov dim" id="warn"><div class="ovc">
+  <div class="big">⚠️</div><h2>You left full-screen</h2>
+  <p class="mu" style="margin:6px 0 16px">In the real exam this would be flagged. Your timer is still running.</p>
+  <div class="row" style="justify-content:center"><button class="btn" data-act="fsback">Return to full-screen</button><button class="btn g" data-act="fsskip">Continue</button></div>
+</div></div>
+<div class="ov dim" id="tour"></div>
+<canvas id="cf"></canvas><div id="toast"></div>
+
+<!-- 1) exam rules + units + shifts + quotes + list of paper files -->
+<script src="data/manifest.js"></script>
+<!-- 2) app logic (paper files are loaded from the paths in manifest.js) -->
+<script src="app.js"></script>
+</body>
+</html>
