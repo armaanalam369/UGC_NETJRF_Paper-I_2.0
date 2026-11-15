@@ -45,6 +45,8 @@ window.RULES = {
 
 /* ---- Paper files: Year · Session (June / December) · Day · Shift (1 / 2) ---- */
 window.PAPER_LIST = [
+  { id: '2025-sep-d8-s2', year: 2026, session: 'June',     day: 8, shift: 2, file: 'data/2025-sep-d8-s2.js' },
+  { id: '2025-sep-d9-s1', year: 2026, session: 'June',     day: 9, shift: 1, file: 'data/2025-sep-d9-s1.js' },
   { id: '2025-jun-d1-s1', year: 2025, session: 'June',     day: 1, shift: 1, file: 'data/2025-jun-d1-s1.js' },
   { id: '2025-jun-d1-s2', year: 2025, session: 'June',     day: 1, shift: 2, file: 'data/2025-jun-d1-s2.js' },
   { id: '2024-dec-d1-s1', year: 2024, session: 'December', day: 1, shift: 1, file: 'data/2024-dec-d1-s1.js' }
