@@ -1,16 +1,15 @@
 /* =====================================================================
    UGC NET JRF · Paper I — manifest.js
    Exam rules, the 10 syllabus units, shift timings, motivational quotes
-   and the list of paper files (one file per Year · Session · Day · Shift).
+   and the list of paper files.
 
-   HOW TO ADD A NEW PAPER
-   1. Copy any data/20xx-*.js file, rename it (e.g. data/2026-jun-d2-s1.js)
-      and change the key at the top  ['2026-jun-d2-s1']  to match the id.
-   2. Replace the questions (50 per real paper).
-   3. Add ONE line to PAPER_LIST below:
-        { id:'2026-jun-d2-s1', year:2026, session:'June', day:2, shift:1, file:'data/2026-jun-d2-s1.js' }
-   The year / session / day / shift pickers update automatically.
-   Files that are listed but missing are simply skipped.
+   HOW TO ADD A NEW PAPER  (2 steps)
+   1. Put the paper file anywhere inside the data/ folder, e.g.  data/2026_d9_s1.js
+      (copy data/_TEMPLATE.js — the first line says which year / session / day / shift it is).
+   2. Add its file name to PAPER_FILES below. That's it.
+
+   Missing files are skipped, so you can list a paper before you upload it.
+   (Open the site as  yoursite.com/?check  to see a list of any mistakes in your paper files.)
    ===================================================================== */
 
 window.RULES = {
@@ -43,13 +42,12 @@ window.RULES = {
   ]
 };
 
-/* ---- Paper files: Year · Session (June / December) · Day · Shift (1 / 2) ---- */
-window.PAPER_LIST = [
-  { id: '2026-sep-d8-s2', year: 2026, session: 'June',     day: 1, shift: 2, file: 'data/2026-sep-d8-s2.js' },
-  { id: '2026-sep-d9-s1', year: 2026, session: 'June',     day: 1, shift: 1, file: 'data/2026-sep-d9-s1.js' },
-  { id: '2025-jun-d1-s1', year: 2025, session: 'June',     day: 1, shift: 1, file: 'data/2025-jun-d1-s1.js' },
-  { id: '2025-jun-d1-s2', year: 2025, session: 'June',     day: 1, shift: 2, file: 'data/2025-jun-d1-s2.js' },
-  { id: '2024-dec-d1-s1', year: 2024, session: 'December', day: 1, shift: 1, file: 'data/2024-dec-d1-s1.js' }
+/* ---- Paper files — one line per paper ---- */
+window.PAPER_FILES = [
+  '2026_d9_s1.js',            // June 2026 · Day 9 · Shift 1
+  'june/2025_d1_s1.js',       // older style (year / session / day / shift read from the path) still works
+  'june/2025_d1_s2.js',
+  'december/2024_d1_s1.js'
 ];
 
 /* ---- Motivational quotes (one per day on the home screen). Add your own! ---- */
