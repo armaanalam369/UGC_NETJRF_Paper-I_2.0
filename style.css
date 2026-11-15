@@ -86,7 +86,7 @@ h2{font-size:1.05rem;font-weight:800}
 .shifts{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .shift{display:flex;flex-direction:column;gap:3px;text-align:left;padding:13px;border-radius:18px;border:1px solid var(--bd);background:var(--gl);transition:.2s;position:relative}
 .shift b{font-size:.95rem}.shift small{color:var(--mu);font-size:.76rem}
-.shift em{position:absolute;right:11px;top:11px;font-style:normal;font-size:.72rem;font-weight:800;padding:2px 8px;border-radius:9px;background:var(--bd)}
+.shift .sq{align-self:flex-start;margin-top:6px;font-size:.7rem;font-weight:800;padding:2px 9px;border-radius:9px;background:var(--bd)}
 .shift.on{border-color:var(--a);background:color-mix(in srgb,var(--a) 18%,var(--card));box-shadow:0 0 0 2px var(--a) inset}
 .shift:disabled{opacity:.35}
 

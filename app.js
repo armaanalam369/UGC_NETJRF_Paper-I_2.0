@@ -10,7 +10,18 @@ window.PAPERS = window.PAPERS || {};
 
 /* ---------- config (falls back to a tiny demo if manifest.js is missing) ---------- */
 var DEF_SHIFTS = [{ n: 1, i: '🌅', label: 'Shift 1 · Morning', time: '9:00 AM – 12:00 PM' }, { n: 2, i: '🌇', label: 'Shift 2 · Evening', time: '3:00 PM – 6:00 PM' }];
-var R = window.RULES, PL = window.PAPER_LIST, demo = !(R && PL && PL.length);
+/* paper files are named  data/<june|december>/<year>_d<day>_s<shift>.js  — everything is read from the path */
+function fromFiles(list) {
+  var out = [];
+  (list || []).forEach(function (f) {
+    var m = /^\/?(?:data\/)?(june|december)\/(\d{4})_d(\d+)_s(\d+)(?:\.js)?$/i.exec(String(f).trim());
+    if (!m) { console.warn('PAPER_FILES: cannot read "' + f + '" — use  june/2026_d1_s1'); return; }
+    var sess = m[1].toLowerCase() === 'june' ? 'June' : 'December';
+    out.push({ year: +m[2], session: sess, day: +m[3], shift: +m[4], file: 'data/' + sess.toLowerCase() + '/' + m[2] + '_d' + m[3] + '_s' + m[4] + '.js' });
+  });
+  return out;
+}
+var R = window.RULES, PL = window.PAPER_LIST || fromFiles(window.PAPER_FILES), demo = !(R && PL && PL.length);
 if (demo) {
   R = { examName: 'UGC NET JRF', paperName: 'Paper I', fullMinutes: 60, marks: 2, negMarks: 0.5, negative: 0,
         topics: [{ n: 'Teaching Aptitude', i: '🎓', k: 'Teaching', u: 1 }, { n: 'Research Aptitude', i: '🔬', k: 'Research', u: 2 }, { n: 'Logical Reasoning', i: '🧩', k: 'Logic', u: 3 }] };
@@ -203,12 +214,29 @@ function counts(mode, unseen) {   /* mode: 'all' (everything) · 'full' (selecte
   return c;
 }
 var sumC = function (c, only) { return Object.keys(c).reduce(function (n, k) { return n + (!only || only[k] ? c[k] : 0); }, 0); };
+function normQs(arr, id) {
+  return (arr || []).map(function (q, i) {
+    var s = q.s;
+    if (q.u != null) { var n = parseInt(q.u, 10); s = (String(q.u).trim() === String(n) && TOPICS[n - 1]) ? TOPICS[n - 1] : q.u; }
+    if (TOPICS.indexOf(s) < 0) console.warn(id + ' Q' + (i + 1) + ': unknown unit "' + (q.u != null ? q.u : q.s) + '" (use 1-' + TOPICS.length + ')');
+    var a = q.a; if (typeof a === 'string') a = 'ABCD'.indexOf(a.trim().toUpperCase()[0]); if (!(a >= 0)) { console.warn(id + ' Q' + (i + 1) + ': bad answer'); a = 0; }
+    return { s: s, c: q.c || '', p: q.p || '', q: q.q, o: q.o, a: a, e: q.e || '' };
+  });
+}
+/* Paper files may use the simple row format [unit, question, A, B, C, D, answer, explanation, subtopic?, passage?] */
+function normQ(r) {
+  if (!Array.isArray(r)) return r;
+  var u = r[0], s = (typeof u === 'number' || /^\d+$/.test(String(u))) ? TOPICS[+u - 1] : u;
+  var a = typeof r[6] === 'number' ? r[6] - 1 : 'ABCD'.indexOf(String(r[6]).trim().toUpperCase());
+  if (!s) console.warn('Unknown unit "' + u + '" in question: ' + r[1]);
+  return { s: s, c: r[8] || '', p: r[9] || '', q: r[1], o: [r[2], r[3], r[4], r[5]], a: a, e: r[7] || '' };
+}
 function load(p) {
   return new Promise(function (res, rej) {
-    var k = p.id;
-    if (window.PAPERS[k]) return res(window.PAPERS[k]);
+    var k = p.id, fin = function () { var pp = window.PAPERS[k]; if (!pp) return false; pp.questions = pp.questions.map(normQ); return true; };
+    if (window.PAPERS[k]) { fin(); return res(window.PAPERS[k]); }
     var s = document.createElement('script'); s.src = p.file;
-    s.onload = function () { window.PAPERS[k] ? res(window.PAPERS[k]) : rej(); };
+    s.onload = function () { fin() ? res(window.PAPERS[k]) : rej(); };
     s.onerror = rej; document.body.appendChild(s);
   });
 }
@@ -250,7 +278,7 @@ function paperPicker() {
     '<div class="lbl">Exam day</div><div class="hscroll">' + ds.map(function (d) { return '<button class="chip ' + (S.pd === d ? 'on' : '') + '" data-act="pd" data-v="' + d + '">Day ' + d + '</button>'; }).join('') + '</div>' +
     '<div class="lbl">Shift</div><div class="shifts">' + R.shifts.map(function (sh) {
       var ok = hs.indexOf(sh.n) > -1, p2 = ok && findP(S.py, S.ps, S.pd, sh.n), q2 = p2 && window.PAPERS[p2.id];
-      return '<button class="shift ' + (S.ph === sh.n ? 'on' : '') + '" ' + (ok ? '' : 'disabled') + ' data-act="ph" data-v="' + sh.n + '"><b>' + sh.i + ' ' + esc(sh.label) + '</b><small>' + esc(sh.time) + '</small>' + (q2 ? '<em>' + q2.questions.length + ' Q</em>' : '') + '</button>';
+      return '<button class="shift ' + (S.ph === sh.n ? 'on' : '') + '" ' + (ok ? '' : 'disabled') + ' data-act="ph" data-v="' + sh.n + '"><b>' + sh.i + ' ' + esc(sh.label) + '</b><small>' + esc(sh.time) + '</small>' + (q2 ? '<span class="sq">' + q2.questions.length + ' questions</span>' : '') + '</button>';
     }).join('') + '</div>';
   var n = pp ? pp.questions.length : null, by = counts('full', false);
   h += '<div class="ticket"><div><small>' + esc(R.examName) + ' · ' + esc(R.paperName) + '</small><b>' + sp.session + ' ' + sp.year + '</b><span>Day ' + sp.day + ' · ' + esc(shiftOf(sp.shift).label) + '</span></div>' +
