@@ -48,3 +48,14 @@ In `admin.html` → Step 2 → *Open file* → choose the paper file → fix →
 - `admin.html` isn't password-protected. It is hidden (not linked, not indexed), but anyone who knows the address can open it. It can't harm your site, because it can't upload anything.
 - Students' results are stored in their own browser; uploading new papers never affects them.
 - If a browser still shows the old list after you upload, do a hard refresh (Ctrl+F5, or clear the site's cache on the phone).
+
+## Troubleshooting
+**The page shows the header and bottom bar but the middle is empty / buttons do nothing**
+The app's script did not run. Version 2 shows a red-flag panel that names the missing file. Otherwise check:
+1. Open `https://YOURNAME.github.io/js/app.js` in the browser. It must show code. If it says 404, the file is in the wrong place.
+2. Do the same for `/data/config.js`, `/data/papers.js` and `/css/style.css`.
+3. Folder and file names are **case-sensitive** and must match exactly: `index.html`, `css/style.css`, `js/app.js`, `data/config.js`, `data/papers.js`, `data/papers/…`.
+4. Make sure you replaced **every** file (old `index.html` + new `app.js` is a bad mix). Easiest: delete the old files from the repository first, then upload the new set.
+5. Wait 1–2 minutes after committing (GitHub Pages rebuilds), then hard-refresh (or open in a private tab).
+
+**Uploading folders from a phone:** the GitHub mobile website can't upload folders. Either upload from a computer, or on the phone use *Add file → Create new file*, type the full path in the name box (for example `js/app.js` — typing `/` creates the folder), paste the file's contents, and commit. Or open the folder first (e.g. `data/papers`) and then use *Add file → Upload files*.
