@@ -233,16 +233,27 @@ function normQ(r) {
 }
 function load(p) {
   return new Promise(function (res, rej) {
-    var k = p.id, fin = function () { var pp = window.PAPERS[k]; if (!pp) return false; pp.questions = pp.questions.map(normQ); return true; };
-    if (window.PAPERS[k]) { fin(); return res(window.PAPERS[k]); }
-    var s = document.createElement('script'); s.src = p.file;
-    s.onload = function () { fin() ? res(window.PAPERS[k]) : rej(); };
-    s.onerror = rej; document.body.appendChild(s);
+    var k = p.id;
+    if (window.PAPERS[k] && window.PAPERS[k].ok) return res(window.PAPERS[k]);
+    var base = p.file.split('/').pop();   /* also try common wrong-folder spots, so a misplaced file still loads */
+    var tries = uniq([p.file, 'data/' + base, p.file.replace(/^data\//, ''), base]), i = 0, bad = 0;
+    (function next() {
+      if (i >= tries.length) { p.err = bad ? 'file found but its contents are invalid' : 'file not found (404)'; return rej(); }
+      var src = tries[i++], s = document.createElement('script'); s.src = src;
+      s.onload = function () {
+        var pp = window.PAPERS[src];
+        if (!pp || !pp.questions) { bad++; s.remove(); return next(); }
+        pp.questions = pp.questions.map(normQ); pp.ok = true; window.PAPERS[k] = pp; p.err = ''; res(pp);
+      };
+      s.onerror = function () { s.remove(); next(); };
+      document.body.appendChild(s);
+    })();
   });
 }
+var FAILS = [];
 function preload() {
   return Promise.all(PL.map(function (p) { return load(p).then(function () { return p; }, function () { return null; }); })).then(function (r) {
-    var ok = r.filter(Boolean);
+    var ok = r.filter(Boolean); FAILS = PL.filter(function (p, i) { return !r[i]; });
     if (ok.length && ok.length < PL.length) PL = ok;
     LOADED = true; fixSel(); if (S.view === 'home') home(true);
   });
@@ -328,6 +339,7 @@ function home(keepScroll) {
   h += '<div class="line"><span>Rough pad &amp; calculator<small>Show ✏️ and 🧮 in the dock during the test</small></span>' + sw(SET.tools, 'tg', 'tools') + '</div>';
   if (!q && full) h += '<div class="line"><span>Full-screen exam mode<small>Warns if you leave full-screen or switch tabs</small></span>' + sw(SET.fullscreen, 'tg', 'fullscreen') + '</div>';
   h += '</div><button class="btn cta" data-act="start">' + (q ? 'Start Quiz' : 'Start Test') + (LOADED && nStart ? ' · ' + nStart + ' questions' : '') + ' →</button>' +
+    (LOADED && FAILS.length ? '<div class="note" style="border-color:#ef4444;color:var(--tx)"><b>⚠️ ' + FAILS.length + ' paper file(s) could not be loaded</b><br>' + FAILS.map(function (p) { return esc(p.file) + ' — ' + esc(p.err || 'not found'); }).join('<br>') + '<br><span class="mu">Upload each file to exactly that path (folder and file names are case-sensitive on GitHub), then hard-refresh the page.</span></div>' : '') +
     (demo ? '<p class="note">Demo mode: <b>data/manifest.js</b> was not found, so a built-in sample is shown. Keep index.html next to the data folder to use your own papers.</p>' : '');
   render(h, keepScroll);
 }

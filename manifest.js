@@ -47,8 +47,10 @@ window.RULES = {
    e.g.  'june/2026_d1_s1.js'  = June 2026 · Day 1 · Shift 1
    Missing files are skipped, so you can list papers before you upload them. */
 window.PAPER_FILES = [
-  'june/2026_d8_s2.js',
   'june/2026_d9_s1.js',
+  'june/2026_d8_s2.js',
+  'june/2025_d1_s1.js',
+  'june/2025_d1_s2.js',
   'december/2024_d1_s1.js'
 ];
 
