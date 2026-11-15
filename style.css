@@ -258,3 +258,21 @@ button.opt:active{transform:scale(.98)}
 
 @media(min-width:760px){.shifts{gap:14px}.units{gap:12px}}
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.ringw .f{stroke-dashoffset:var(--o)}}
+
+
+/* ---- dropdown (year / day pickers) ---- */
+.dd{width:100%;appearance:none;-webkit-appearance:none;font:inherit;font-weight:700;color:var(--tx);padding:13px 44px 13px 16px;border-radius:16px;border:1px solid var(--bd);background-color:var(--gl);
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='9' viewBox='0 0 14 9'%3E%3Cpath d='M1 1l6 6 6-6' fill='none' stroke='%238b97c4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 16px center;cursor:pointer;transition:border-color .2s,box-shadow .2s}
+.dd:hover{border-color:var(--a)}
+.dd:focus-visible{outline:2px solid var(--a);outline-offset:2px}
+[data-theme=dark] .dd{color-scheme:dark}[data-theme=light] .dd{color-scheme:light}
+.dd option{color:var(--tx);background:var(--card)}
+
+/* ---- add-a-paper dialog + owner check card ---- */
+#addp .ovc{max-height:92dvh;overflow:auto}
+#addp .dd{margin-bottom:2px}
+.warn{margin-top:12px;font-size:.84rem;line-height:1.45;padding:9px 12px;border-radius:14px;background:color-mix(in srgb,#f59e0b 16%,var(--card));border:1px solid color-mix(in srgb,#f59e0b 45%,var(--bd))}
+.warnbox{border-color:color-mix(in srgb,#f59e0b 55%,var(--bd))}
+.warnbox ul{margin:8px 0 0 18px;font-size:.84rem;line-height:1.55}
+.warnbox code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.8rem;background:var(--gl);padding:1px 6px;border-radius:6px}

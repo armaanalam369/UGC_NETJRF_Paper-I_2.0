@@ -14,14 +14,14 @@
 
 <!-- floating glass header island -->
 <header>
-  <span class="brand"><img class="mk" src="logo.png" alt="Wise Choice logo" width="44" height="44"><span><b>Wise Choice</b><small>Your Shortcut through the Syllabus!</small></span></span>
+  <span class="brand"><img class="mk" src="logo.png" alt="Wise Choice logo" width="44" height="44" onerror="this.style.display='none'"><span><b>Wise Choice</b><small>Your Shortcut through the Syllabus!</small></span></span>
   <button class="sw" id="tgl" data-act="theme" aria-label="Dark / light mode"><i></i></button>
 </header>
 <main id="app"></main>
 
 <!-- question palette drawer -->
 <div class="shade" id="shade" data-act="closegrid"></div>
-<div id="drawer" aria-label="Question palette"></div>
+<div id="drawer" role="dialog" aria-label="Question palette"></div>
 
 <!-- insights / revision / settings sheet -->
 <div class="shade" id="shade2" data-act="closesheet"></div>
@@ -57,6 +57,7 @@
 </div>
 
 <input type="file" id="imp" accept=".json,application/json" style="display:none">
+<input type="file" id="pf" accept=".js,.json,.txt,text/javascript,application/json,text/plain" style="display:none">
 
 <!-- floating action dock: navigation on every screen, test tools during a test -->
 <nav id="dock" data-mode="nav" aria-label="Quick actions">
@@ -85,11 +86,12 @@
   <div class="row" style="justify-content:center"><button class="btn" data-act="fsback">Return to full-screen</button><button class="btn g" data-act="fsskip">Continue</button></div>
 </div></div>
 <div class="ov dim" id="tour"></div>
+<div class="ov dim" id="addp" role="dialog" aria-modal="true" aria-label="Add a paper"></div>
 <canvas id="cf"></canvas><div id="toast"></div>
 
-<!-- 1) exam rules + units + shifts + quotes + list of paper files -->
+<!-- 1) exam rules + units + shifts + quotes + the list of paper files (data/manifest.js) -->
 <script src="data/manifest.js"></script>
-<!-- 2) app logic (paper files are loaded from the paths in manifest.js) -->
+<!-- 2) app logic (loads every file listed in manifest.js) -->
 <script src="app.js"></script>
 </body>
 </html>

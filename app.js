@@ -10,22 +10,36 @@ window.PAPERS = window.PAPERS || {};
 
 /* ---------- config (falls back to a tiny demo if manifest.js is missing) ---------- */
 var DEF_SHIFTS = [{ n: 1, i: '🌅', label: 'Shift 1 · Morning', time: '9:00 AM – 12:00 PM' }, { n: 2, i: '🌇', label: 'Shift 2 · Evening', time: '3:00 PM – 6:00 PM' }];
-/* paper files are named  data/<june|december>/<year>_d<day>_s<shift>.js  — everything is read from the path */
-function fromFiles(list) {
-  var out = [];
-  (list || []).forEach(function (f) {
-    var m = /^\/?(?:data\/)?(june|december)\/(\d{4})_d(\d+)_s(\d+)(?:\.js)?$/i.exec(String(f).trim());
-    if (!m) { console.warn('PAPER_FILES: cannot read "' + f + '" — use  june/2026_d1_s1'); return; }
-    var sess = m[1].toLowerCase() === 'june' ? 'June' : 'December';
-    out.push({ year: +m[2], session: sess, day: +m[3], shift: +m[4], file: 'data/' + sess.toLowerCase() + '/' + m[2] + '_d' + m[3] + '_s' + m[4] + '.js' });
-  });
-  return out;
+
+/* Every paper file calls this.  Either of these works:
+     PAPER([ ...rows ]);
+     PAPER({ year: 2026, session: 'June', day: 9, shift: 1 }, [ ...rows ]);   <- recommended: the file describes itself */
+window.PAPER = function (a, b) {
+  var meta = Array.isArray(a) ? null : a, rows = Array.isArray(a) ? a : b;
+  var src = (document.currentScript && document.currentScript.getAttribute('src')) || '';
+  (window.PAPERS = window.PAPERS || {})[src] = { questions: rows || [], meta: meta };
+};
+function normMeta(m) {
+  if (!m) return null;
+  var t = String(m.session || '').trim().toLowerCase(), y = +m.year, ses = /^dec/.test(t) ? 'December' : /^jun/.test(t) ? 'June' : '';
+  return (y > 1990 && y < 2100 && ses) ? { year: y, session: ses, day: Math.max(1, +m.day || 1), shift: Math.max(1, +m.shift || 1) } : null;
 }
-var R = window.RULES, PL = window.PAPER_LIST || fromFiles(window.PAPER_FILES), demo = !(R && PL && PL.length);
+/* A manifest entry is just a file name inside data/ (any sub-folder is fine).
+   If the name follows  <june|december>/<year>_d<day>_s<shift>.js  the details are read from it straight away;
+   otherwise they come from the header line inside the file once it has loaded. */
+function parseEntry(f) {
+  f = String(f).trim().replace(/^\/+/, '').replace(/^data\//, '');
+  var p = { id: 'data/' + f, file: 'data/' + f, year: 0, session: 'June', day: 1, shift: 1 };
+  var m = /^(june|december)\/(\d{4})_d(\d+)_s(\d+)\.js$/i.exec(f);
+  if (m) { p.session = m[1].toLowerCase() === 'june' ? 'June' : 'December'; p.year = +m[2]; p.day = +m[3]; p.shift = +m[4]; }
+  return p;
+}
+var R = window.RULES, ENT = (window.PAPER_FILES || []).map(parseEntry), PL = ENT.filter(function (p) { return p.year; }), demo = !(R && ENT.length);
+var PROBLEMS = [], FAILED = [];
 if (demo) {
   R = { examName: 'UGC NET JRF', paperName: 'Paper I', fullMinutes: 60, marks: 2, negMarks: 0.5, negative: 0,
         topics: [{ n: 'Teaching Aptitude', i: '🎓', k: 'Teaching', u: 1 }, { n: 'Research Aptitude', i: '🔬', k: 'Research', u: 2 }, { n: 'Logical Reasoning', i: '🧩', k: 'Logic', u: 3 }] };
-  PL = [{ id: 'demo', year: 2025, session: 'June', day: 1, shift: 1, file: '' }];
+  PL = ENT = [{ id: 'demo', year: 2025, session: 'June', day: 1, shift: 1, file: '' }];
   window.PAPERS.demo = { questions: [
     { s: 'Teaching Aptitude', c: 'Learning', q: 'The ZPD concept was given by —', o: ['Piaget', 'Vygotsky', 'Skinner', 'Bruner'], a: 1, e: 'Vygotsky proposed the Zone of Proximal Development.' },
     { s: 'Research Aptitude', c: 'Hypothesis', q: 'H0 stands for —', o: ['Alternative hypothesis', 'Null hypothesis', 'Research question', 'Variable'], a: 1, e: 'H0 is the null hypothesis.' },
@@ -33,10 +47,6 @@ if (demo) {
 }
 R.marks = R.marks || 2; R.negMarks = R.negMarks == null ? 0.5 : R.negMarks; R.negative = R.negative || 0; R.fullMinutes = R.fullMinutes || 60; R.shifts = R.shifts || DEF_SHIFTS;
 var SESS = ['June', 'December'];
-PL = PL.map(function (p) {
-  p.year = +p.year; p.day = +p.day || 1; p.shift = +p.shift || 1; p.session = p.session || 'June';
-  p.id = p.id || (p.year + '-' + p.session.slice(0, 3).toLowerCase() + '-d' + p.day + '-s' + p.shift); return p;
-});
 var TOPICS = R.topics.map(function (t) { return t.n; }), ICON = {}, CODE = {}, UNUM = {};
 R.topics.forEach(function (t, i) { ICON[t.n] = t.i; CODE[t.n] = t.k || t.n.slice(0, 3).toUpperCase(); UNUM[t.n] = t.u || (i + 1); });
 var QUOTES = (window.QUOTES && window.QUOTES.length) ? window.QUOTES : ['Small steps every day beat big plans someday.'];
@@ -45,12 +55,12 @@ var app = $('#app'), root = document.documentElement;
 var DAY = 86400000, INT = [1, 3, 7, 14];   /* spaced-repetition gaps (days) for Leitner boxes 1-4 */
 
 /* ---------- storage ---------- */
-function put(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+function put(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { return false; } }
 function get(k, d) { try { var v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } }
 function del(k) { try { localStorage.removeItem(k); } catch (e) {} }
 var SET = Object.assign({ font: 1, motion: true, showTimer: true, autoNext: false, shuffleQ: false, shuffleO: false,
   confirmSubmit: true, autoWrong: true, haptic: true, wake: false, defMins: 30, fullMins: R.fullMinutes, defNeg: false, tools: true, fullscreen: true }, get('un_set', {}));
-var ATT = get('un_att', []), SAV = get('un_sav', {}), DAYM = get('un_days', {});
+var ATT = get('un_att', []), SAV = get('un_sav', {}), DAYM = get('un_days', {}), CUSTOM = get('un_custom', []);
 root.dataset.theme = get('un_t', 'dark'); root.dataset.pal = get('un_p', 'royal');
 var pad = function (n) { return String(n).padStart(2, '0'); };
 var dkey = function (d) { d = d || new Date(); return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); };
@@ -62,7 +72,7 @@ if (!Object.keys(DAYM).length && ATT.length) {   /* seed the heatmap from older 
 var S = { kind: 'test', run: 'test', el: 0, view: 'home', mode: 'full', py: 0, ps: '', pd: 0, ph: 0, fY: 'all', fS: 'all', fH: 'all',
   pool: 'all', secs: {}, neg: SET.defNeg, tneg: false, mins: SET.defMins, cnt: 20, meta: null,
   qs: [], ans: [], qt: [], mk: {}, fl: [], cur: 0, left: 0, total: 0, t: null, grid: false, tab: 'last', sf: 'all', wl: null, src: '',
-  paused: false, fs: false, fsx: 0, tabx: 0, tabNote: false };
+  paused: false, fs: false, fsx: 0, tabx: 0, tabNote: false, lt: 0 };
 TOPICS.forEach(function (t) { S.secs[t] = false; });
 function prefs() { root.style.setProperty('--fs', ['14.5px', '16px', '18px'][SET.font]); root.dataset.motion = SET.motion ? 'on' : 'off'; }
 function saveSet() { put('un_set', SET); prefs(); }
@@ -86,6 +96,12 @@ function render(h, keepPos) {
 function sw(on, act, v) { return '<button class="sw ' + (on ? 'on' : '') + '" role="switch" aria-checked="' + !!on + '" data-act="' + act + '" data-v="' + esc(v || '') + '"><i></i></button>'; }
 function seg(act, cur, items) {
   return '<div class="seg">' + items.map(function (x) { return '<button class="' + (String(cur) === String(x[0]) ? 'on' : '') + '" ' + (x[2] ? 'disabled' : '') + ' data-act="' + act + '" data-v="' + esc(x[0]) + '">' + x[1] + '</button>'; }).join('') + '</div>';
+}
+/* dropdown:  items = [[value, label, disabled?], ...]  — fires the same data-act action as a button, via the 'change' event */
+function dd(act, cur, items, lab) {
+  return '<select class="dd" data-act="' + act + '" aria-label="' + esc(lab || '') + '">' + items.map(function (x) {
+    return '<option value="' + esc(x[0]) + '"' + (String(cur) === String(x[0]) ? ' selected' : '') + (x[2] ? ' disabled' : '') + '>' + esc(x[1]) + '</option>';
+  }).join('') + '</select>';
 }
 function fabs(t) {
   $('#dock').dataset.mode = t ? 'test' : 'nav';
@@ -165,7 +181,7 @@ function resume() {
   var r = get('un_run', null), q = get('un_run_q', null); if (!r || !q) return;
   Object.assign(S, { run: r.run, mode: r.mode, tneg: r.tneg, src: r.src, meta: r.meta || null, qs: q, ans: r.ans, qt: r.qt, mk: r.mk, fl: r.fl || q.map(function () { return null; }),
     cur: r.cur, left: r.left, total: r.total, el: r.el, fsx: r.fsx || 0, tabx: r.tabx || 0, paused: false });
-  clearInterval(S.t); S.t = setInterval(tick, 1000); getWake(); reqFS(S.run, S.mode); fabs(true); test();
+  clearInterval(S.t); S.lt = Date.now(); S.t = setInterval(tick, 500); getWake(); reqFS(S.run, S.mode); fabs(true); test();
 }
 
 /* ---------- full-screen exam mode (full test only) ---------- */
@@ -181,7 +197,7 @@ document.addEventListener('fullscreenchange', function () {
 });
 document.addEventListener('visibilitychange', function () {
   if (document.hidden) { if (S.view === 'test' && S.run === 'test' && S.mode === 'full' && !S.paused) { S.tabx++; S.tabNote = true; saveRun(); } }
-  else if (S.tabNote) { S.tabNote = false; toast('⚠️ Tab switch recorded (' + S.tabx + ')'); }
+  else { if (S.view === 'test' && SET.wake) getWake(); if (S.tabNote) { S.tabNote = false; toast('⚠️ Tab switch recorded (' + S.tabx + ')'); } }
 });
 
 /* ---------- pause / resume ---------- */
@@ -191,7 +207,7 @@ function pause() {
   $('#pLeft').textContent = fmt(S.left); $('#pause').classList.add('show');
 }
 function unpause() {
-  S.paused = false; $('#pause').classList.remove('show');
+  S.paused = false; S.lt = Date.now(); $('#pause').classList.remove('show');
   if (S.fs && !document.fullscreenElement) reqFS(S.run, S.mode);
 }
 
@@ -205,6 +221,7 @@ function poolQs() {
 function counts(mode, unseen) {   /* mode: 'all' (everything) · 'full' (selected paper) · 'sec' (filtered papers) */
   var c = {}; TOPICS.forEach(function (t) { c[t] = 0; });
   var sp = mode === 'full' ? selPaper() : null;
+  if (mode === 'full' && !sp) return c;
   poolQs().forEach(function (x) {
     if (mode === 'full' && x.p.id !== sp.id) return;
     if (mode === 'sec' && !matches(x.p)) return;
@@ -214,48 +231,69 @@ function counts(mode, unseen) {   /* mode: 'all' (everything) · 'full' (selecte
   return c;
 }
 var sumC = function (c, only) { return Object.keys(c).reduce(function (n, k) { return n + (!only || only[k] ? c[k] : 0); }, 0); };
-function normQs(arr, id) {
-  return (arr || []).map(function (q, i) {
-    var s = q.s;
-    if (q.u != null) { var n = parseInt(q.u, 10); s = (String(q.u).trim() === String(n) && TOPICS[n - 1]) ? TOPICS[n - 1] : q.u; }
-    if (TOPICS.indexOf(s) < 0) console.warn(id + ' Q' + (i + 1) + ': unknown unit "' + (q.u != null ? q.u : q.s) + '" (use 1-' + TOPICS.length + ')');
-    var a = q.a; if (typeof a === 'string') a = 'ABCD'.indexOf(a.trim().toUpperCase()[0]); if (!(a >= 0)) { console.warn(id + ' Q' + (i + 1) + ': bad answer'); a = 0; }
-    return { s: s, c: q.c || '', p: q.p || '', q: q.q, o: q.o, a: a, e: q.e || '' };
-  });
-}
-/* Paper files may use the simple row format [unit, question, A, B, C, D, answer, explanation, subtopic?, passage?] */
+function unitName(u) { var n = parseInt(u, 10); return (String(u).trim() === String(n) && TOPICS[n - 1]) ? TOPICS[n - 1] : u; }
+function ansIdx(v) { if (typeof v === 'number') return v - 1; var m = /^\s*\(?([A-Da-d])\)?\.?\s*$/.exec(String(v)); return m ? 'ABCD'.indexOf(m[1].toUpperCase()) : -1; }
+/* Rows:  [unit, question, A, B, C, D, answer, explanation, subtopic?, passage?]   (objects {s|u, q, o, a, e, c, p} also work) */
 function normQ(r) {
-  if (!Array.isArray(r)) return r;
-  var u = r[0], s = (typeof u === 'number' || /^\d+$/.test(String(u))) ? TOPICS[+u - 1] : u;
-  var a = typeof r[6] === 'number' ? r[6] - 1 : 'ABCD'.indexOf(String(r[6]).trim().toUpperCase());
-  if (!s) console.warn('Unknown unit "' + u + '" in question: ' + r[1]);
-  return { s: s, c: r[8] || '', p: r[9] || '', q: r[1], o: [r[2], r[3], r[4], r[5]], a: a, e: r[7] || '' };
+  if (!r) return { s: '', c: '', p: '', q: '', o: [], a: -1, e: '' };
+  if (Array.isArray(r)) return { s: unitName(r[0]), c: r[8] || '', p: r[9] || '', q: r[1], o: [r[2], r[3], r[4], r[5]], a: ansIdx(r[6]), e: r[7] || '' };
+  var a = r.a; if (typeof a === 'string') a = ansIdx(a);
+  return { s: r.u != null ? unitName(r.u) : r.s, c: r.c || '', p: r.p || '', q: r.q, o: r.o || [], a: a, e: r.e || '' };
 }
+/* Returns a list of readable problems, e.g. ["Q7 answer is not A–D"] */
+function auditQs(qs) {
+  var bad = [];
+  qs.forEach(function (q, i) {
+    var why = TOPICS.indexOf(q.s) < 0 ? 'unknown unit "' + q.s + '"' : !String(q.q || '').trim() ? 'empty question'
+      : (q.a < 0 || q.a > 3) ? 'answer is not A–D' : [0, 1, 2, 3].some(function (j) { return q.o[j] == null || !String(q.o[j]).trim(); }) ? 'an option is empty' : '';
+    if (why) bad.push('Q' + (i + 1) + ' ' + why);
+  });
+  return bad;
+}
+function finish(p) {
+  var pp = window.PAPERS[p.id]; if (!pp) return null;
+  if (!pp.ready) {
+    pp.questions = pp.questions.map(normQ);
+    var m = normMeta(pp.meta); if (m) { p.year = m.year; p.session = m.session; p.day = m.day; p.shift = m.shift; }
+    pp.ready = true;
+    var bad = auditQs(pp.questions);
+    if (bad.length) PROBLEMS.push(p.id.replace(/^data\//, '') + ' — ' + bad.slice(0, 4).join(', ') + (bad.length > 4 ? ' … +' + (bad.length - 4) + ' more' : ''));
+  }
+  return pp;
+}
+var LOADING = {};
 function load(p) {
-  return new Promise(function (res, rej) {
-    var k = p.id;
-    if (window.PAPERS[k] && window.PAPERS[k].ok) return res(window.PAPERS[k]);
-    var base = p.file.split('/').pop();   /* also try common wrong-folder spots, so a misplaced file still loads */
-    var tries = uniq([p.file, 'data/' + base, p.file.replace(/^data\//, ''), base]), i = 0, bad = 0;
-    (function next() {
-      if (i >= tries.length) { p.err = bad ? 'file found but its contents are invalid' : 'file not found (404)'; return rej(); }
-      var src = tries[i++], s = document.createElement('script'); s.src = src;
-      s.onload = function () {
-        var pp = window.PAPERS[src];
-        if (!pp || !pp.questions) { bad++; s.remove(); return next(); }
-        pp.questions = pp.questions.map(normQ); pp.ok = true; window.PAPERS[k] = pp; p.err = ''; res(pp);
-      };
-      s.onerror = function () { s.remove(); next(); };
-      document.body.appendChild(s);
-    })();
+  if (finish(p)) return Promise.resolve(window.PAPERS[p.id]);
+  if (LOADING[p.id]) return LOADING[p.id];
+  return (LOADING[p.id] = new Promise(function (res, rej) {
+    var el = document.createElement('script'); el.src = p.file;
+    el.onload = function () { finish(p) ? res(window.PAPERS[p.id]) : rej(); };
+    el.onerror = function () { delete LOADING[p.id]; rej(); };
+    document.body.appendChild(el);
+  }));
+}
+
+/* ---------- papers added from inside the app (kept on this device) ---------- */
+function registerCustom() {
+  PL = PL.filter(function (p) { return !p.custom; });
+  CUSTOM.forEach(function (c) {
+    window.PAPERS[c.id] = { questions: c.rows.map(normQ), ready: true };
+    PL.push({ id: c.id, file: '', year: c.year, session: c.session, day: c.day, shift: c.shift, custom: true });
   });
 }
-var FAILS = [];
 function preload() {
-  return Promise.all(PL.map(function (p) { return load(p).then(function () { return p; }, function () { return null; }); })).then(function (r) {
-    var ok = r.filter(Boolean); FAILS = PL.filter(function (p, i) { return !r[i]; });
-    if (ok.length && ok.length < PL.length) PL = ok;
-    LOADED = true; fixSel(); if (S.view === 'home') home(true);
+  return Promise.all(ENT.map(function (p) {
+    return load(p).then(function () { return p; }, function () { FAILED.push(p.file); return null; });
+  })).then(function (r) {
+    if (!demo) {
+      r.forEach(function (p) { if (p && !p.year) PROBLEMS.push(p.id.replace(/^data\//, '') + ' — no year / session / day / shift found. Add a header: PAPER({ year: 2026, session: \'June\', day: 1, shift: 1 }, [ … ]);'); });
+      var seen = {}; PL = r.filter(function (p) { if (!p || !p.year) return false; var k = [p.year, p.session, p.day, p.shift].join('|'); if (seen[k]) { PROBLEMS.push(p.id.replace(/^data\//, '') + ' — same year/session/day/shift as ' + seen[k] + ' (ignored)'); return false; } seen[k] = p.id.replace(/^data\//, ''); return true; });
+    }
+    registerCustom();
+    FAILED.forEach(function (f) { console.warn('Paper file not found: ' + f); });
+    PROBLEMS.forEach(function (x) { console.warn('Paper check: ' + x); });
+    LOADED = true; S.py = 0; S.ps = ''; S.pd = 0; S.ph = 0; fixSel();   /* start on the newest paper */
+    if (S.view === 'home') home(true);
   });
 }
 
@@ -282,9 +320,22 @@ function homeCards() {
   h += '<button class="card quick" data-act="quick"><i>⚡</i><span><b>Quick 10</b><br><span class="mu">Ten random questions from every unit, instant feedback</span></span></button>';
   return h;
 }
+function addBtn(sp) {
+  return '<div class="row" style="margin-top:14px"><button class="btn g s" data-act="addpaper">＋ Add a paper</button>' +
+    (sp && sp.custom ? '<button class="btn g s" data-act="delcustom" data-v="' + esc(sp.id) + '" style="color:#ef4444">🗑 Remove this upload</button>' : '') + '</div>';
+}
+/* shown only to the site owner (localhost, file://, or add ?check to the address) */
+function checkCard() {
+  var owner = location.protocol === 'file:' || /^(localhost|127\.|192\.168\.)/.test(location.hostname) || /[?&]check\b/.test(location.search);
+  if (!owner || !LOADED || demo || (!PROBLEMS.length && !FAILED.length)) return '';
+  return '<div class="card warnbox"><b>🛠 Paper file check</b><span class="mu"> (only you see this)</span><ul>' +
+    FAILED.map(function (f) { return '<li>Not found: <code>' + esc(f) + '</code> — remove it from PAPER_FILES or upload the file.</li>'; }).join('') +
+    PROBLEMS.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul></div>';
+}
 function paperPicker() {
-  var ys = pYears(), ss = pSessions(S.py), ds = pDays(S.py, S.ps), hs = pShifts(S.py, S.ps, S.pd), sp = selPaper(), pp = window.PAPERS[sp.id];
-  var h = '<div class="lbl">Exam year</div><div class="hscroll">' + ys.map(function (y) { return '<button class="chip ' + (S.py === y ? 'on' : '') + '" data-act="py" data-v="' + y + '">' + y + '</button>'; }).join('') + '</div>' +
+  var ys = pYears(), ss = pSessions(S.py), ds = pDays(S.py, S.ps), hs = pShifts(S.py, S.ps, S.pd), sp = selPaper(), pp = sp && window.PAPERS[sp.id];
+  if (!sp) return LOADED ? empty('📄', 'No papers yet', 'Tap “Add a paper” to load a question-paper file.') + addBtn() : '<p class="mu">⏳ Loading papers…</p>';
+  var h = '<div class="lbl">Exam year</div>' + dd('py', S.py, ys.map(function (y) { var n = PL.filter(function (p) { return p.year === y; }).length; return [y, y + '  ·  ' + n + ' paper' + (n === 1 ? '' : 's')]; }), 'Exam year') +
     '<div class="lbl">Session</div>' + seg('ps', S.ps, SESS.map(function (s) { return [s, s === 'June' ? '☀️ June' : '❄️ December', ss.indexOf(s) < 0]; })) +
     '<div class="lbl">Exam day</div><div class="hscroll">' + ds.map(function (d) { return '<button class="chip ' + (S.pd === d ? 'on' : '') + '" data-act="pd" data-v="' + d + '">Day ' + d + '</button>'; }).join('') + '</div>' +
     '<div class="lbl">Shift</div><div class="shifts">' + R.shifts.map(function (sh) {
@@ -292,17 +343,16 @@ function paperPicker() {
       return '<button class="shift ' + (S.ph === sh.n ? 'on' : '') + '" ' + (ok ? '' : 'disabled') + ' data-act="ph" data-v="' + sh.n + '"><b>' + sh.i + ' ' + esc(sh.label) + '</b><small>' + esc(sh.time) + '</small>' + (q2 ? '<span class="sq">' + q2.questions.length + ' questions</span>' : '') + '</button>';
     }).join('') + '</div>';
   var n = pp ? pp.questions.length : null, by = counts('full', false);
-  h += '<div class="ticket"><div><small>' + esc(R.examName) + ' · ' + esc(R.paperName) + '</small><b>' + sp.session + ' ' + sp.year + '</b><span>Day ' + sp.day + ' · ' + esc(shiftOf(sp.shift).label) + '</span></div>' +
+  h += '<div class="ticket"><div><small>' + esc(R.examName) + ' · ' + esc(R.paperName) + '</small><b>' + sp.session + ' ' + sp.year + '</b><span>Day ' + sp.day + ' · ' + esc(shiftOf(sp.shift).label) + (sp.custom ? ' · 📱 My upload' : '') + '</span></div>' +
     '<div class="tr"><b>' + (n === null ? '…' : n) + '</b><span>questions</span><b>' + (n === null ? '…' : maxMarks(n)) + '</b><span>marks · ' + SET.fullMins + ' min</span></div></div>';
   if (LOADED) h += '<div class="tgrid">' + TOPICS.map(function (t) { return '<span class="tag" style="' + (by[t] ? '' : 'opacity:.4') + '">' + ICON[t] + ' ' + esc(CODE[t]) + ' <b>' + by[t] + '</b></span>'; }).join('') + '</div>';
   if (LOADED && n !== null && n < 50) h += '<p class="mu" style="margin-top:10px">ℹ️ This paper file has ' + n + ' of the usual 50 questions so far.</p>';
-  return h;
+  return h + addBtn(sp);
 }
 function unitPicker(cView, un) {
   var sel = TOPICS.filter(function (t) { return S.secs[t]; }), selSet = {}; sel.forEach(function (t) { selSet[t] = 1; });
   var avail = sumC(cView, selSet), g = agg(), ys = pYears(), np = PL.filter(matches).length;
-  var h = '<div class="lbl">Draw questions from</div><div class="hscroll"><button class="chip ' + (S.fY === 'all' ? 'on' : '') + '" data-act="fy" data-v="all">📚 All years</button>' +
-    ys.map(function (y) { return '<button class="chip ' + (S.fY === y ? 'on' : '') + '" data-act="fy" data-v="' + y + '">' + y + '</button>'; }).join('') + '</div>' +
+  var h = '<div class="lbl">Draw questions from</div>' + dd('fy', S.fY, [['all', '📚 All years']].concat(ys.map(function (y) { return [y, String(y)]; })), 'Exam year') +
     '<div class="lbl">Session</div>' + seg('fs', S.fS, [['all', 'All'], ['June', '☀️ June'], ['December', '❄️ December']]) +
     '<div class="lbl">Shift</div>' + seg('fh', S.fH, [['all', 'All'], [1, '🌅 Morning'], [2, '🌇 Evening']]) +
     '<p class="mu" style="margin-top:8px">' + np + ' paper' + (np === 1 ? '' : 's') + ' matched' + (np ? '' : ' — change the filters') + '</p>';
@@ -327,7 +377,7 @@ function home(keepScroll) {
   var h = '<section class="hero"><div class="kick">UGC NET · JRF · Assistant Professor</div><h1>Crack <span class="grad">Paper I</span> the smart way</h1>' +
     '<p class="mu">Practise real shift-wise papers or drill one syllabus unit at a time — timed tests, instant-feedback quizzes and deep analytics.</p>' +
     '<div class="row"><span class="pill">50 Q · 100 marks</span><span class="pill">2 sessions / year</span><span class="pill">2 shifts / day</span><span class="pill">🔥 ' + streak() + '-day streak</span><span class="pill">📝 ' + ATT.length + ' tests</span></div></section>' +
-    '<div class="bento">' + stat('Papers', PL.length) + stat('Questions', LOADED ? nTotal : '…') + stat('Units', LOADED ? nCov + '/' + TOPICS.length : '…') + '</div>' + homeCards();
+    '<div class="bento">' + stat('Papers', LOADED ? PL.length : '…') + stat('Questions', LOADED ? nTotal : '…') + stat('Units', LOADED ? nCov + '/' + TOPICS.length : '…') + '</div>' + checkCard() + homeCards();
   h += '<div class="step"><i>1</i>Choose mode</div>' + seg('kind', S.kind, [['test', '📝 Exam Test'], ['quiz', '💡 Quiz · instant answers']]);
   h += '<div class="step"><i>2</i>Choose scope</div>' + seg('mode', S.mode, [['full', '📄 Full Paper'], ['sec', '📚 Unit-wise Practice']]);
   h += '<div class="step"><i>3</i>' + (full ? 'Pick the paper' : 'Pick units &amp; filters') + '</div><div class="card">' + (full ? paperPicker() : unitPicker(cView, un)) + '</div>';
@@ -339,7 +389,6 @@ function home(keepScroll) {
   h += '<div class="line"><span>Rough pad &amp; calculator<small>Show ✏️ and 🧮 in the dock during the test</small></span>' + sw(SET.tools, 'tg', 'tools') + '</div>';
   if (!q && full) h += '<div class="line"><span>Full-screen exam mode<small>Warns if you leave full-screen or switch tabs</small></span>' + sw(SET.fullscreen, 'tg', 'fullscreen') + '</div>';
   h += '</div><button class="btn cta" data-act="start">' + (q ? 'Start Quiz' : 'Start Test') + (LOADED && nStart ? ' · ' + nStart + ' questions' : '') + ' →</button>' +
-    (LOADED && FAILS.length ? '<div class="note" style="border-color:#ef4444;color:var(--tx)"><b>⚠️ ' + FAILS.length + ' paper file(s) could not be loaded</b><br>' + FAILS.map(function (p) { return esc(p.file) + ' — ' + esc(p.err || 'not found'); }).join('<br>') + '<br><span class="mu">Upload each file to exactly that path (folder and file names are case-sensitive on GitHub), then hard-refresh the page.</span></div>' : '') +
     (demo ? '<p class="note">Demo mode: <b>data/manifest.js</b> was not found, so a built-in sample is shown. Keep index.html next to the data folder to use your own papers.</p>' : '');
   render(h, keepScroll);
 }
@@ -359,7 +408,7 @@ async function start(opt) {
   if (get('un_run', null) && !confirm('You have an unfinished test. Discard it and start a new one?')) return;
   reqFS(S.kind, S.mode);   /* must run inside the click gesture, before any await */
   var papers;
-  try { papers = await Promise.all(list.map(load)); } catch (e) { exitFS(); return alert('Could not load a paper file. Check the paths in data/manifest.js.'); }
+  try { papers = await Promise.all(list.map(load)); } catch (e) { exitFS(); return alert('Could not load a paper file. Check the file names listed in data/manifest.js.'); }
   var qs = [], cnt = (opt && opt.cnt != null) ? opt.cnt : S.cnt;
   papers.forEach(function (p, pi) {
     p.questions.forEach(function (q, i) {
@@ -383,14 +432,16 @@ function begin(qs, total, kind) {
   S.cur = 0; S.total = total; S.left = total; S.el = 0;
   PAD.strokes = []; CALC = calcNew(); calcUI();
   put('un_run_q', qs);
-  clearInterval(S.t); S.t = setInterval(tick, 1000); getWake(); fabs(true); test();
+  clearInterval(S.t); S.lt = Date.now(); S.t = setInterval(tick, 500); getWake(); fabs(true); test();
 }
+/* The clock is based on real time, so it stays correct even if the phone throttles the page in the background */
 function tick() {
   if (S.paused) return;
-  S.el++; if (S.view === 'test') S.qt[S.cur]++;
-  if (S.el % 5 === 0) saveRun();
+  var d = Math.floor((Date.now() - S.lt) / 1000); if (d < 1) return;
+  S.lt += d * 1000; var prev = S.el; S.el += d; if (S.view === 'test') S.qt[S.cur] += d;
+  if (Math.floor(S.el / 5) > Math.floor(prev / 5)) saveRun();
   if (S.run === 'quiz') return;
-  S.left--;
+  S.left -= d;
   var el = $('#tm'); if (el) { el.textContent = SET.showTimer ? fmt(S.left) : '⏱ ••'; el.classList.toggle('low', S.left < 300); }
   if (S.left <= 0) { toast('⏰ Time is up!'); submit(); }
 }
@@ -447,6 +498,7 @@ function closeGrid() { S.grid = false; $('#drawer').classList.remove('show'); $(
 
 /* ---------- submit + result ---------- */
 function submit() {
+  if (S.view !== 'test') return;
   clearInterval(S.t); relWake(); fabs(false); closeGrid(); closeTools(); exitFS(); clearRun();
   S.paused = false; $('#pause').classList.remove('show'); $('#warn').classList.remove('show'); S.view = 'result'; dockSync();
   var neg = S.tneg ? R.negMarks : R.negative;
@@ -798,13 +850,72 @@ function tourEnd() { $('#tour').classList.remove('show'); put('un_tour', 1); }
 $('#imp').addEventListener('change', function (e) {
   var f = e.target.files[0]; if (!f) return; var r = new FileReader();
   r.onload = function () {
-    try { var d = JSON.parse(r.result); if (d.att) ATT = d.att; if (d.sav) SAV = d.sav; if (d.days) DAYM = d.days; if (d.set) Object.assign(SET, d.set); if (d.seen) SEEN = d.seen; put('un_att', ATT); put('un_sav', SAV); put('un_days', DAYM); put('un_seen', SEEN); saveSet(); sheet(); alert('Backup restored.'); }
+    try { var d = JSON.parse(r.result); if (d.att) ATT = d.att; if (d.sav) SAV = d.sav; if (d.days) DAYM = d.days; if (d.set) Object.assign(SET, d.set); if (d.seen) SEEN = d.seen; if (d.custom) { CUSTOM = d.custom; put('un_custom', CUSTOM); registerCustom(); fixSel(); } put('un_att', ATT); put('un_sav', SAV); put('un_days', DAYM); put('un_seen', SEEN); saveSet(); sheet(); alert('Backup restored.'); }
     catch (x) { alert('That file is not a valid backup.'); }
   };
   r.readAsText(f); e.target.value = '';
 });
 function setTopicOnly(v) { TOPICS.forEach(function (t) { S.secs[t] = (t === v); }); S.mode = 'sec'; S.kind = 'quiz'; S.fY = S.fS = S.fH = 'all'; S.pool = 'all'; }
+/* ---- Add a paper: choose a file, check the details, done ---- */
+var ADD = null;
+function guessMeta(name) {
+  var y = /(?:^|\D)((?:19|20)\d\d)(?:\D|$)/.exec(name), d = /(?:^|[^a-z])d(?:ay)?[\s_-]?(\d{1,2})(?:\D|$)/i.exec(name), h = /(?:^|[^a-z])s(?:hift)?[\s_-]?(\d)(?:\D|$)/i.exec(name);
+  return { y: y ? +y[1] : new Date().getFullYear(), d: d ? +d[1] : 1, h: h ? +h[1] : 1, s: /dec/i.test(name) ? 'December' : 'June' };
+}
+/* Reads a paper file: either the usual  PAPER(...)  .js file or plain JSON. (It is the user's own file, run on their own device.) */
+function readPaperText(txt) {
+  var t = txt.replace(/^\uFEFF/, '').trim(), got = null;
+  if (/^[\[{]/.test(t)) { var j = JSON.parse(t); got = Array.isArray(j) ? { rows: j, meta: null } : { rows: j.questions || j.rows || [], meta: j }; }
+  else new Function('PAPER', t)(function (a, b) { got = Array.isArray(a) ? { rows: a, meta: null } : { rows: b || [], meta: a }; });
+  if (!got || !got.rows || !got.rows.length) throw new Error('empty');
+  return got;
+}
+function addUI() {
+  var a = ADD, ys = [], ds = [], i, hit = findP(a.y, a.s, a.d, a.h), clash = hit && !hit.custom, bad = a.bad.length;
+  for (i = new Date().getFullYear() + 1; i >= 2018; i--) ys.push([i, String(i)]);
+  for (i = 1; i <= 20; i++) ds.push([i, 'Day ' + i]);
+  $('#addp').innerHTML = '<div class="ovc" style="text-align:left"><h2>＋ Add a paper</h2>' +
+    '<p class="mu" style="margin:4px 0 12px"><b style="color:var(--tx)">' + a.n + ' questions</b> found in <b style="color:var(--tx)">' + esc(a.name) + '</b>. Check the details and save.</p>' +
+    '<div class="lbl">Exam year</div>' + dd('ay', a.y, ys, 'Exam year') +
+    '<div class="lbl">Session</div>' + dd('as', a.s, [['June', '☀️ June'], ['December', '❄️ December']], 'Session') +
+    '<div class="lbl">Exam day</div>' + dd('ad', a.d, ds, 'Exam day') +
+    '<div class="lbl">Shift</div>' + dd('ah', a.h, R.shifts.map(function (x) { return [x.n, x.label]; }), 'Shift') +
+    (clash ? '<p class="warn">This paper is already on the site — pick a different day or shift.</p>' : hit ? '<p class="warn">You already added this paper. Saving will replace it.</p>' : '') +
+    (bad ? '<p class="warn">⚠️ ' + bad + ' question(s) have problems (e.g. ' + esc(a.bad[0]) + '). They may not show correctly.</p>' : '') +
+    '<div class="row" style="margin-top:16px;justify-content:flex-end"><button class="btn g" data-act="addcancel">Cancel</button><button class="btn" data-act="addsave"' + (clash ? ' disabled style="opacity:.4"' : '') + '>Save paper</button></div></div>';
+  $('#addp').classList.add('show');
+}
+document.addEventListener('change', function (e) {
+  var t = e.target; if (t.tagName !== 'SELECT' || !t.dataset.act) return;
+  var f = A[t.dataset.act]; if (f) f(t.value, t);
+});
+$('#pf').addEventListener('change', function (e) {
+  var f = e.target.files[0]; if (!f) return; var r = new FileReader();
+  r.onload = function () {
+    try {
+      var got = readPaperText(r.result), m = normMeta(got.meta), g = guessMeta(f.name), qs = got.rows.map(normQ);
+      ADD = { name: f.name, rows: got.rows, n: qs.length, bad: auditQs(qs),
+        y: m ? m.year : g.y, s: m ? m.session : g.s, d: m ? m.day : g.d, h: m ? m.shift : g.h };
+      addUI();
+    } catch (x) { alert('Could not read “' + f.name + '”.\nUse a paper file in the same format as your other papers (a .js file starting with PAPER([ … ]) or a JSON list of questions).'); }
+  };
+  r.readAsText(f); e.target.value = '';
+});
 var A = {
+  addpaper: function () { if (S.view === 'test') return; $('#pf').click(); },
+  ay: function (v) { ADD.y = +v; addUI(); }, as: function (v) { ADD.s = v; addUI(); }, ad: function (v) { ADD.d = +v; addUI(); }, ah: function (v) { ADD.h = +v; addUI(); },
+  addcancel: function () { ADD = null; $('#addp').classList.remove('show'); },
+  addsave: function () {
+    var a = ADD; if (!a) return; var hit = findP(a.y, a.s, a.d, a.h); if (hit && !hit.custom) return;
+    var id = 'custom/' + a.y + '-' + a.s.slice(0, 3).toLowerCase() + '-d' + a.d + '-s' + a.h, old = CUSTOM.slice();
+    CUSTOM = CUSTOM.filter(function (c) { return c.id !== id; }); CUSTOM.push({ id: id, year: a.y, session: a.s, day: a.d, shift: a.h, rows: a.rows });
+    if (!put('un_custom', CUSTOM)) { CUSTOM = old; return alert('This device has no storage space left for another paper. Remove an old upload first.'); }
+    registerCustom(); S.py = a.y; S.ps = a.s; S.pd = a.d; S.ph = a.h; S.mode = 'full'; ADD = null; $('#addp').classList.remove('show'); home(true); toast('✅ Paper added — ' + a.n + ' questions');
+  },
+  delcustom: function (v) {
+    if (!confirm('Remove this paper from your device? Your past results are kept.')) return;
+    CUSTOM = CUSTOM.filter(function (c) { return c.id !== v; }); put('un_custom', CUSTOM); delete window.PAPERS[v]; registerCustom(); fixSel(); home(true);
+  },
   theme: function () { root.dataset.theme = root.dataset.theme === 'dark' ? 'light' : 'dark'; put('un_t', root.dataset.theme); if (sheetOpen()) sheet(); if (toolsOpen() && S.ttab === 'pad') padDraw(); },
   pick: function (v) { root.dataset.pal = v; put('un_p', v); if (sheetOpen()) sheet(); },
   mode: function (v) { S.mode = v; home(true); },
@@ -879,9 +990,9 @@ var A = {
   tour: function () { closeSheet(); tourShow(0); }, tournext: function () { tourShow(S.tourN + 1); }, tourback: function () { tourShow(S.tourN - 1); }, tourend: tourEnd,
   tg: function (v) { SET[v] = !SET[v]; if (v === 'defNeg') S.neg = SET.defNeg; saveSet(); if (v === 'tools' && S.view === 'test') fabs(true); if (sheetOpen()) sheet(); if (S.view === 'home') home(true); },
   font: function (v) { SET.font = +v; saveSet(); sheet(); },
-  'export': function () { download('ugcnet-backup.json', JSON.stringify({ att: ATT, sav: SAV, set: SET, days: DAYM, seen: SEEN })); },
+  'export': function () { download('ugcnet-backup.json', JSON.stringify({ att: ATT, sav: SAV, set: SET, days: DAYM, seen: SEEN, custom: CUSTOM })); },
   'import': function () { $('#imp').click(); },
-  wipe: function () { if (confirm('Delete all analytics, streaks and saved questions from this device?')) { ATT = []; SAV = {}; DAYM = {}; SEEN = {}; put('un_seen', SEEN); put('un_att', ATT); put('un_sav', SAV); put('un_days', DAYM); sheet(); } }
+  wipe: function () { if (confirm('Delete all analytics, streaks and saved questions from this device?\n(Papers you added yourself are kept.)')) { clearRun(); ATT = []; SAV = {}; DAYM = {}; SEEN = {}; put('un_seen', SEEN); put('un_att', ATT); put('un_sav', SAV); put('un_days', DAYM); sheet(); } }
 };
 document.addEventListener('click', function (e) {
   var t = e.target.closest('[data-act]'); if (!t || t.disabled) return;
