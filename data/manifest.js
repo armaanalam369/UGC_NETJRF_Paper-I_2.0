@@ -44,10 +44,11 @@ window.RULES = {
 
 /* ---- Paper files — one line per paper ---- */
 window.PAPER_FILES = [
-  '2026_d9_s1.js',            // June 2026 · Day 9 · Shift 1
-  'june/2025_d1_s1.js',       // older style (year / session / day / shift read from the path) still works
-  'june/2025_d1_s2.js',
-  'december/2024_d1_s1.js'
+   '2026_d8_s2.js',
+   '2026_d9_s1.js'             // June 2026 · Day 9 · Shift 1
+ //'june/2025_d1_s1.js',       // older style (year / session / day / shift read from the path) still works
+ //'june/2025_d1_s2.js',
+ //'december/2024_d1_s1.js'
 ];
 
 /* ---- Motivational quotes (one per day on the home screen). Add your own! ---- */
