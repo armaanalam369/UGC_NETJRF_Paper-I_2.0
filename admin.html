@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark" data-pal="royal" data-motion="on">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#060b1a">
+<title>Admin · Wise Choice</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+  main{max-width:820px}
+  .g2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .g2 .dd{padding:13px 34px 13px 12px;font-size:.92rem;background-position:right 12px center}
+  @media(max-width:420px){.g2{gap:8px}}
+  .in{width:100%;font:inherit;color:var(--tx);background:var(--gl);border:1px solid var(--bd);border-radius:14px;padding:11px 13px;resize:vertical}
+  .in:focus{outline:2px solid var(--a);outline-offset:1px}
+  textarea.in{min-height:84px;line-height:1.45}
+  textarea.mono{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.82rem;white-space:pre}
+  .fname{display:inline-block;margin-top:12px;padding:6px 12px;border-radius:12px;background:var(--gl);border:1px solid var(--bd);font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.82rem}
+  .orow{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+  .ob{flex:none;width:42px;height:42px;border-radius:50%;border:1px solid var(--bd);background:var(--card);font-weight:800}
+  .ob.on{background:linear-gradient(135deg,var(--a),var(--b));color:#10183a;border-color:transparent;box-shadow:0 8px 20px -8px var(--a)}
+  .tabbody{margin-top:14px}
+  details.more{margin-top:12px;border:1px dashed var(--bd);border-radius:14px;padding:10px 12px}
+  details.more summary{cursor:pointer;font-weight:700}
+  .msg{margin-top:10px;font-size:.86rem;line-height:1.5}
+  .msg.ok{color:#10b981}.msg.bad{color:#f59e0b}
+  .sum{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+  .sum .tag{display:flex;gap:6px;align-items:center;padding:6px 10px;font-size:.78rem;background:var(--gl);color:var(--tx);border:1px solid var(--bd);border-radius:12px}
+  .sum .tag.full{border-color:#10b981}.sum .tag.over{border-color:#f59e0b}
+  .qi{display:flex;gap:10px;align-items:flex-start;background:var(--card);border:1px solid var(--bd);border-left:4px solid #10b981;border-radius:18px;padding:12px;margin-bottom:8px}
+  .qi.bad{border-left-color:#f59e0b}
+  .qi .n{flex:none;min-width:30px;font-weight:800;color:var(--mu)}
+  .qi .b{flex:1;min-width:0}
+  .qi .t{font-size:.9rem;line-height:1.4;word-break:break-word}
+  .qi .w{margin-top:5px;font-size:.78rem;color:#f59e0b;font-weight:700}
+  .qi .a{margin-top:3px;font-size:.78rem;color:var(--mu)}
+  .qi .x{display:flex;flex-direction:column;gap:6px}
+  .iconb{border:1px solid var(--bd);background:var(--gl);border-radius:10px;padding:5px 9px;font-size:.8rem}
+  .steps{margin:12px 0 0 20px;line-height:1.75}
+  .steps code,.msg code,.fname{word-break:break-all}
+  .steps code,.card code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.82rem;background:var(--gl);padding:1px 6px;border-radius:6px}
+  .chiprow{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+  .chiprow .tag{display:flex;gap:6px;align-items:center;font-size:.78rem;padding:5px 10px}
+  .chiprow .tag button{border:0;background:none;color:var(--mu);font-weight:800;padding:0 2px}
+  .okline{display:flex;gap:8px;align-items:center;font-weight:700}
+  .btn[disabled]{opacity:.4;cursor:not-allowed}
+  .sep{height:1px;background:var(--bd);margin:16px 0}
+  main{padding-bottom:60px}
+</style>
+<script src="data/config.js"></script>
+</head>
+<body>
+<header>
+  <span class="brand"><img class="mk" src="logo.png" alt="" width="44" height="44" onerror="this.style.display='none'"><span><b>Wise Choice · Admin</b><small>Add question papers in minutes</small></span></span>
+  <a class="btn g s" href="index.html">← View site</a>
+</header>
+
+<main>
+  <section class="hero" style="padding:20px">
+    <div class="kick">Developer tools</div>
+    <h1 style="font-size:clamp(1.5rem,5.5vw,2.1rem)">Add a <span class="grad">question paper</span></h1>
+    <p class="mu">Fill in the four steps, download two small files, upload them to your site. Your work is saved automatically in this browser until you finish.</p>
+  </section>
+
+  <div id="draftBar"></div>
+
+  <div class="step"><i>1</i>Which paper is it?</div>
+  <div class="card">
+    <div class="g2">
+      <div><div class="lbl">Exam year</div><select class="dd" id="dYear" aria-label="Exam year"></select></div>
+      <div><div class="lbl">Session</div><select class="dd" id="dSes" aria-label="Session"></select></div>
+      <div><div class="lbl">Exam day</div><select class="dd" id="dDay" aria-label="Exam day"></select></div>
+      <div><div class="lbl">Shift</div><select class="dd" id="dShift" aria-label="Shift"></select></div>
+    </div>
+    <span class="fname" id="fname"></span>
+  </div>
+
+  <div class="step"><i>2</i>Add the questions</div>
+  <div class="card">
+    <div class="seg" id="tabs">
+      <button class="on" data-tab="paste">📋 Paste / CSV</button>
+      <button data-tab="form">✍️ Type one</button>
+      <button data-tab="file">📂 Open file</button>
+    </div>
+
+    <!-- A) paste from Excel / Google Sheets / CSV -->
+    <div class="tabbody" id="p-paste">
+      <p class="mu" style="margin-bottom:10px">Copy your rows from Excel or Google Sheets and paste them here. Columns, in this order:<br>
+        <b style="color:var(--tx)">Unit · Question · A · B · C · D · Answer · Explanation · Sub-topic · Passage</b> (last three optional). Unit can be a number (1–10) or its name; Answer is A, B, C or D.</p>
+      <textarea class="in mono" id="paste" rows="7" placeholder="1&#9;The ZPD concept was given by —&#9;Piaget&#9;Vygotsky&#9;Skinner&#9;Bruner&#9;B&#9;Vygotsky proposed the Zone of Proximal Development."></textarea>
+      <div class="row" style="margin-top:10px">
+        <button class="btn s" id="bPaste">＋ Add these questions</button>
+        <button class="btn g s" id="bCsv">📂 Choose a CSV file</button>
+        <button class="btn g s" id="bTpl">⬇ Excel template</button>
+      </div>
+      <div class="msg" id="pmsg"></div>
+    </div>
+
+    <!-- B) one question at a time -->
+    <div class="tabbody" id="p-form" style="display:none">
+      <div class="lbl" style="margin-top:0">Unit</div><select class="dd" id="fUnit" aria-label="Unit"></select>
+      <div class="lbl">Question</div><textarea class="in" id="fQ" placeholder="Type the question…"></textarea>
+      <div class="lbl">Options — tap the letter of the correct one</div>
+      <div id="fOpts"></div>
+      <div class="lbl">Explanation (optional)</div><textarea class="in" id="fE" style="min-height:64px" placeholder="Why is this the answer?"></textarea>
+      <div class="lbl">Sub-topic (optional)</div><input class="in" id="fC" placeholder="e.g. Learning theories">
+      <details class="more"><summary>Passage / table for this question (optional)</summary>
+        <p class="mu" style="margin:8px 0">For comprehension passages or data tables. Plain text works; tables can be written as HTML.</p>
+        <textarea class="in" id="fP" style="min-height:90px"></textarea></details>
+      <div class="row" style="margin-top:14px"><button class="btn" id="bAdd">＋ Add question</button><button class="btn g" id="bCancel" style="display:none">Cancel</button></div>
+      <div class="msg" id="fmsg"></div>
+    </div>
+
+    <!-- C) open an existing paper file -->
+    <div class="tabbody" id="p-file" style="display:none">
+      <p class="mu" style="margin-bottom:10px">Open a paper file you made earlier (a <code>.js</code> file from <code>data/papers/</code>, or a JSON list) to fix mistakes or add more questions.</p>
+      <button class="btn s" id="bOpen">📂 Choose a paper file</button>
+      <div class="msg" id="omsg"></div>
+    </div>
+  </div>
+
+  <div class="step"><i>3</i>Review <span class="mu" id="cnt" style="font-weight:700"></span></div>
+  <div id="review"></div>
+
+  <div class="step"><i>4</i>Publish</div>
+  <div class="card" id="publish"></div>
+
+  <p class="mu" style="text-align:center;margin-top:22px">This page is not linked from the student site, but it is <b>not password-protected</b> — it can't change your live site by itself, only create files for you to upload.</p>
+</main>
+
+<input type="file" id="csvIn" accept=".csv,.tsv,.txt,text/csv,text/plain" style="display:none">
+<input type="file" id="fileIn" accept=".js,.json,.txt,text/javascript,application/json" style="display:none">
+<input type="file" id="pjsIn" accept=".js,.txt,text/javascript" style="display:none">
+<div id="toast"></div>
+
+<script>
+(function () {
+'use strict';
+var $ = function (s) { return document.querySelector(s); };
+var esc = function (s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); };
+var DRAFT_KEY = 'wc_admin_draft';
+
+/* ---------- units (read from data/config.js; built-in fallback) ---------- */
+var TOP = (window.RULES && window.RULES.topics && window.RULES.topics.length) ? window.RULES.topics : [
+  { n: 'Teaching Aptitude', i: '🎓', k: 'Teaching' }, { n: 'Research Aptitude', i: '🔬', k: 'Research' }, { n: 'Comprehension', i: '📖', k: 'Comprehension' },
+  { n: 'Communication', i: '🗣️', k: 'Communication' }, { n: 'Mathematical Reasoning & Aptitude', i: '➗', k: 'Maths' }, { n: 'Logical Reasoning', i: '🧩', k: 'Logic' },
+  { n: 'Data Interpretation', i: '📊', k: 'Data Interp.' }, { n: 'ICT', i: '💻', k: 'ICT' }, { n: 'People, Development & Environment', i: '🌳', k: 'PDE' }, { n: 'Higher Education System', i: '🏛️', k: 'Higher Edu.' }];
+var SHIFTS = (window.RULES && window.RULES.shifts) || [{ n: 1, label: 'Shift 1 · Morning' }, { n: 2, label: 'Shift 2 · Evening' }];
+var PER_UNIT = 5, FULL = TOP.length * PER_UNIT;
+
+/* ---------- state ---------- */
+var now = new Date();
+var D = { year: now.getFullYear(), session: 'June', day: 1, shift: 1, qs: [] };
+var editing = -1, FILES = null, FILES_SRC = '', got = { paper: false, list: false };
+
+function saveDraft() { try { localStorage.setItem(DRAFT_KEY, JSON.stringify(D)); } catch (e) {} }
+function toast(m) { var t = $('#toast'); t.textContent = m; t.classList.add('show'); clearTimeout(toast.h); toast.h = setTimeout(function () { t.classList.remove('show'); }, 2800); }
+function download(name, txt, mime) { var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([txt], { type: mime || 'text/javascript;charset=utf-8' })); a.download = name; document.body.appendChild(a); a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 500); }
+function fileName() { return D.year + '_' + D.session.toLowerCase() + '_d' + D.day + '_s' + D.shift + '.js'; }
+function paperLabel(y, s, d, h) { return s + ' ' + y + ' · Day ' + d + ' · Shift ' + h; }
+
+/* ---------- parsing helpers ---------- */
+function unitIdx(v) {
+  v = String(v == null ? '' : v).trim(); if (!v) return 0;
+  var m = /^(?:unit\s*)?(\d+)$/i.exec(v); if (m) { var n = +m[1]; return n >= 1 && n <= TOP.length ? n : 0; }
+  var l = v.toLowerCase(), i;
+  for (i = 0; i < TOP.length; i++) if (TOP[i].n.toLowerCase() === l || String(TOP[i].k || '').toLowerCase() === l) return i + 1;
+  for (i = 0; i < TOP.length; i++) if (TOP[i].n.toLowerCase().indexOf(l) === 0) return i + 1;
+  return 0;
+}
+function ansIdx(v) {
+  v = String(v == null ? '' : v).trim(); var m = /^(?:option\s*)?\(?([A-Da-d])\)?[.)]?$/i.exec(v);
+  if (m) return 'ABCD'.indexOf(m[1].toUpperCase());
+  return /^[1-4]$/.test(v) ? +v - 1 : -1;
+}
+function rowToQ(r) {
+  if (!Array.isArray(r)) return { u: unitIdx(r.u != null ? r.u : r.s), q: String(r.q || ''), o: [0, 1, 2, 3].map(function (i) { return String((r.o || [])[i] || ''); }), a: typeof r.a === 'number' ? r.a : ansIdx(r.a), e: String(r.e || ''), c: String(r.c || ''), p: String(r.p || '') };
+  var c = r.map(function (x) { return String(x == null ? '' : x).trim(); });
+  return { u: unitIdx(c[0]), q: c[1] || '', o: [c[2] || '', c[3] || '', c[4] || '', c[5] || ''], a: ansIdx(c[6]), e: c[7] || '', c: c[8] || '', p: c[9] || '' };
+}
+/* Excel / Sheets / CSV reader: tab, comma or semicolon separated, quoted cells may contain line breaks */
+function parseTable(text) {
+  text = text.replace(/^\uFEFF/, '');
+  var first = text.split(/\r?\n/, 1)[0], delim = first.indexOf('\t') > -1 ? '\t' : (first.split(';').length > first.split(',').length ? ';' : ',');
+  var rows = [], row = [], cur = '', inq = false, i, c, push = function () { row.push(cur); cur = ''; }, endRow = function () { push(); if (row.some(function (x) { return x.trim() !== ''; })) rows.push(row); row = []; };
+  for (i = 0; i < text.length; i++) {
+    c = text.charAt(i);
+    if (inq) { if (c === '"') { if (text.charAt(i + 1) === '"') { cur += '"'; i++; } else inq = false; } else cur += c; }
+    else if (c === '"' && cur === '') inq = true;
+    else if (c === delim) push();
+    else if (c === '\n' || c === '\r') { if (c === '\r' && text.charAt(i + 1) === '\n') i++; endRow(); }
+    else cur += c;
+  }
+  endRow(); return rows;
+}
+function problems(q) {
+  var w = [];
+  if (!q.u) w.push('choose a unit');
+  if (!q.q.trim()) w.push('question is empty');
+  var miss = [0, 1, 2, 3].filter(function (i) { return !String(q.o[i] || '').trim(); }).map(function (i) { return 'ABCD'.charAt(i); });
+  if (miss.length) w.push('option ' + miss.join(', ') + ' is empty');
+  if (q.a < 0 || q.a > 3) w.push('mark the correct answer');
+  return w;
+}
+/* text → what goes in the paper file (line breaks become <br> unless the text holds an HTML table) */
+function fix(t) { t = String(t || '').trim(); return /<table/i.test(t) ? t.replace(/\r?\n/g, '') : t.replace(/\r?\n/g, '<br>'); }
+function rowOf(q) {
+  var r = [q.u, fix(q.q), q.o[0].trim(), q.o[1].trim(), q.o[2].trim(), q.o[3].trim(), 'ABCD'.charAt(q.a), fix(q.e), q.c.trim(), fix(q.p)];
+  while (r.length > 8 && r[r.length - 1] === '') r.pop(); return r;
+}
+function makePaperJs() {
+  return '/* UGC NET JRF Paper I · ' + paperLabel(D.year, D.session, D.day, D.shift) + '  (' + D.qs.length + ' questions) — created with admin.html\n' +
+    '   One line per question: [ unit(1-10), "Question", "A", "B", "C", "D", "Correct letter", "Explanation", "Sub-topic", "Passage / table" ] */\n' +
+    'PAPER({ year: ' + D.year + ", session: '" + D.session + "', day: " + D.day + ', shift: ' + D.shift + ' }, [\n' +
+    D.qs.map(function (q) { return '  ' + JSON.stringify(rowOf(q)); }).join(',\n') + '\n]);\n';
+}
+function labelOfFile(f) { var m = /^(\d{4})_(june|december)_d(\d+)_s(\d+)\.js$/i.exec(f); return m ? paperLabel(m[1], m[2].charAt(0).toUpperCase() + m[2].slice(1).toLowerCase(), m[3], m[4]) : ''; }
+function makePapersJs(list) {
+  return '/* =====================================================================\n   papers.js — the list of question papers shown on the site.\n   Created / updated by admin.html (Step 4 → "Download papers.js").\n   To add a paper by hand: upload its file to data/papers/ and add one line below.\n   ===================================================================== */\n' +
+    'window.PAPER_FILES = [\n' + list.map(function (f) { var l = labelOfFile(f); return "  '" + f.replace(/'/g, '') + "'," + (l ? '   // ' + l : ''); }).join('\n') + '\n];\n';
+}
+function readPaperText(txt) {                 // a PAPER(...) .js file or a JSON list; it is your own file, run on your own computer
+  var t = txt.replace(/^\uFEFF/, '').trim(), res = null;
+  if (/^[\[{]/.test(t)) { var j = JSON.parse(t); res = Array.isArray(j) ? { rows: j, meta: null } : { rows: j.questions || j.rows || [], meta: j }; }
+  else new Function('PAPER', t)(function (a, b) { res = Array.isArray(a) ? { rows: a, meta: null } : { rows: b || [], meta: a }; });
+  if (!res || !res.rows || !res.rows.length) throw new Error('empty'); return res;
+}
+
+/* ---------- step 1: details ---------- */
+function fillDetails() {
+  var i, h = '';
+  for (i = now.getFullYear() + 1; i >= 2018; i--) h += '<option value="' + i + '">' + i + '</option>'; $('#dYear').innerHTML = h;
+  $('#dSes').innerHTML = '<option value="June">☀️ June</option><option value="December">❄️ December</option>';
+  h = ''; for (i = 1; i <= 20; i++) h += '<option value="' + i + '">Day ' + i + '</option>'; $('#dDay').innerHTML = h;
+  $('#dShift').innerHTML = SHIFTS.map(function (s) { return '<option value="' + s.n + '">' + esc(s.label) + '</option>'; }).join('');
+  $('#fUnit').innerHTML = '<option value="0">Choose a unit…</option>' + TOP.map(function (t, i) { return '<option value="' + (i + 1) + '">' + (i + 1) + '. ' + esc(t.i + ' ' + t.n) + '</option>'; }).join('');
+  syncDetails();
+}
+function syncDetails() {
+  $('#dYear').value = D.year; $('#dSes').value = D.session; $('#dDay').value = D.day; $('#dShift').value = D.shift;
+  $('#fname').textContent = '📄 ' + fileName();
+}
+['#dYear', '#dSes', '#dDay', '#dShift'].forEach(function (id) {
+  $(id).addEventListener('change', function () { D.year = +$('#dYear').value; D.session = $('#dSes').value; D.day = +$('#dDay').value; D.shift = +$('#dShift').value; got.paper = false; syncDetails(); saveDraft(); renderPublish(); });
+});
+
+/* ---------- step 2: tabs ---------- */
+function showTab(t) {
+  document.querySelectorAll('#tabs button').forEach(function (b) { b.classList.toggle('on', b.dataset.tab === t); });
+  ['paste', 'form', 'file'].forEach(function (x) { $('#p-' + x).style.display = x === t ? '' : 'none'; });
+}
+$('#tabs').addEventListener('click', function (e) { var b = e.target.closest('button'); if (b) { if (editing >= 0 && b.dataset.tab !== 'form') cancelEdit(); showTab(b.dataset.tab); } });
+
+/* paste / CSV */
+function importRows(text) {
+  var rows = parseTable(text), skipped = 0, added = 0, head = false;
+  if (rows.length && !unitIdx(rows[0][0]) && ansIdx(rows[0][6]) < 0) { rows.shift(); head = true; }
+  rows.forEach(function (r) { var q = rowToQ(r); if (!q.q.trim()) { skipped++; return; } D.qs.push(q); added++; });
+  got.paper = false; saveDraft(); renderAll();
+  var bad = added ? D.qs.slice(-added).filter(function (q) { return problems(q).length; }).length : 0;
+  return { added: added, skipped: skipped, head: head, bad: bad };
+}
+function showImport(res, box) {
+  var el = $(box);
+  if (!res.added) { el.className = 'msg bad'; el.textContent = 'No questions found. Check that each row has the question in the second column.'; return; }
+  el.className = 'msg ' + (res.bad ? 'bad' : 'ok');
+  el.textContent = '✅ Added ' + res.added + ' question' + (res.added === 1 ? '' : 's') + (res.head ? ' (header row skipped)' : '') + (res.skipped ? ' · ' + res.skipped + ' empty row(s) ignored' : '') +
+    (res.bad ? ' · ⚠️ ' + res.bad + ' need attention — see Step 3.' : '. Looks good!');
+}
+$('#bPaste').addEventListener('click', function () { var v = $('#paste').value; if (!v.trim()) { toast('Paste your rows first.'); return; } showImport(importRows(v), '#pmsg'); $('#paste').value = ''; });
+$('#bCsv').addEventListener('click', function () { $('#csvIn').click(); });
+$('#csvIn').addEventListener('change', function (e) {
+  var f = e.target.files[0]; if (!f) return; var r = new FileReader();
+  r.onload = function () { showImport(importRows(String(r.result)), '#pmsg'); }; r.readAsText(f); e.target.value = '';
+});
+$('#bTpl').addEventListener('click', function () {
+  var q = function (a) { return a.map(function (x) { return '"' + String(x).replace(/"/g, '""') + '"'; }).join(','); };
+  download('question-template.csv', '\uFEFF' + [q(['Unit (1-10)', 'Question', 'A', 'B', 'C', 'D', 'Answer (A-D)', 'Explanation', 'Sub-topic', 'Passage (optional)']),
+    q([1, 'The ZPD concept was given by —', 'Piaget', 'Vygotsky', 'Skinner', 'Bruner', 'B', 'Vygotsky proposed the Zone of Proximal Development.', 'Learning theories', '']),
+    q([2, 'H0 stands for —', 'Alternative hypothesis', 'Null hypothesis', 'Research question', 'Variable', 'B', 'H0 is the null hypothesis.', 'Hypothesis', ''])].join('\r\n'), 'text/csv;charset=utf-8');
+  toast('Template downloaded — fill it in Excel, then paste the rows or choose the CSV.');
+});
+
+/* type one question */
+var fa = -1;
+function buildOpts() {
+  $('#fOpts').innerHTML = [0, 1, 2, 3].map(function (i) { return '<div class="orow"><button type="button" class="ob" data-i="' + i + '" aria-label="Mark option ' + 'ABCD'.charAt(i) + ' as correct">' + 'ABCD'.charAt(i) + '</button><input class="in" data-o="' + i + '" placeholder="Option ' + 'ABCD'.charAt(i) + '"></div>'; }).join('');
+  paintOpts();
+}
+function paintOpts() { document.querySelectorAll('#fOpts .ob').forEach(function (b) { var on = +b.dataset.i === fa; b.classList.toggle('on', on); b.textContent = on ? '✓' : 'ABCD'.charAt(+b.dataset.i); }); }
+$('#fOpts').addEventListener('click', function (e) { var b = e.target.closest('.ob'); if (b) { fa = +b.dataset.i; paintOpts(); } });
+function readForm() { return { u: +$('#fUnit').value, q: $('#fQ').value.trim(), o: [0, 1, 2, 3].map(function (i) { return document.querySelector('[data-o="' + i + '"]').value.trim(); }), a: fa, e: $('#fE').value.trim(), c: $('#fC').value.trim(), p: $('#fP').value.trim() }; }
+function resetForm(keepUnit) {
+  var u = $('#fUnit').value; $('#fQ').value = $('#fE').value = $('#fC').value = $('#fP').value = ''; document.querySelectorAll('[data-o]').forEach(function (i) { i.value = ''; }); fa = -1; paintOpts();
+  $('#fUnit').value = keepUnit ? u : '0'; $('#fmsg').textContent = '';
+}
+function cancelEdit() { editing = -1; $('#bAdd').textContent = '＋ Add question'; $('#bCancel').style.display = 'none'; resetForm(false); }
+$('#bAdd').addEventListener('click', function () {
+  var q = readForm(), w = problems(q), m = $('#fmsg');
+  if (w.length) { m.className = 'msg bad'; m.textContent = '⚠️ ' + w.join(' · '); return; }
+  if (editing >= 0) { D.qs[editing] = q; toast('Question ' + (editing + 1) + ' updated'); cancelEdit(); }
+  else { D.qs.push(q); toast('Question ' + D.qs.length + ' added'); resetForm(true); }
+  got.paper = false; saveDraft(); renderAll(); $('#fQ').focus();
+});
+$('#bCancel').addEventListener('click', cancelEdit);
+function editQ(i) {
+  var q = D.qs[i]; editing = i; showTab('form');
+  $('#fUnit').value = q.u; $('#fQ').value = q.q; q.o.forEach(function (o, j) { document.querySelector('[data-o="' + j + '"]').value = o; }); fa = q.a; paintOpts();
+  $('#fE').value = q.e; $('#fC').value = q.c; $('#fP').value = q.p; if (q.p) document.querySelector('details.more').open = true;
+  $('#bAdd').textContent = '💾 Save changes'; $('#bCancel').style.display = ''; $('#fmsg').className = 'msg'; $('#fmsg').textContent = 'Editing question ' + (i + 1);
+  $('#p-form').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+/* open an existing paper file */
+$('#bOpen').addEventListener('click', function () { $('#fileIn').click(); });
+$('#fileIn').addEventListener('change', function (e) {
+  var f = e.target.files[0]; if (!f) return; var r = new FileReader(), m = $('#omsg');
+  r.onload = function () {
+    try {
+      var res = readPaperText(String(r.result)), qs = res.rows.map(rowToQ);
+      if (D.qs.length && !confirm('Replace the ' + D.qs.length + ' questions you have now with the ' + qs.length + ' from this file?\n(OK = replace · Cancel = keep what you have)')) return;
+      D.qs = qs; var mt = res.meta;
+      if (mt && +mt.year) { D.year = +mt.year; D.session = /^dec/i.test(mt.session) ? 'December' : 'June'; D.day = +mt.day || 1; D.shift = +mt.shift || 1; }
+      else { var g = /(?:^|\D)((?:19|20)\d\d)(?:\D|$)/.exec(f.name); if (g) D.year = +g[1]; }
+      got.paper = false; syncDetails(); saveDraft(); renderAll(); m.className = 'msg ok'; m.textContent = '✅ Opened ' + qs.length + ' questions from ' + f.name + '. Edit them in Step 3.';
+    } catch (x) { m.className = 'msg bad'; m.textContent = '⚠️ Could not read that file. Choose a paper file from data/papers/ (starts with PAPER(...)) or a JSON list.'; }
+  };
+  r.readAsText(f); e.target.value = '';
+});
+
+/* ---------- step 3: review ---------- */
+function plain(s, n) { s = String(s).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim(); return s.length > n ? s.slice(0, n) + '…' : s; }
+function renderReview() {
+  var cnt = {}, seen = {}, dup = {};
+  D.qs.forEach(function (q, i) { cnt[q.u] = (cnt[q.u] || 0) + 1; var k = q.q.trim().toLowerCase(); if (k) { if (seen[k] !== undefined) dup[i] = seen[k] + 1; else seen[k] = i; } });
+  var bad = D.qs.filter(function (q) { return problems(q).length; }).length;
+  $('#cnt').textContent = D.qs.length ? '· ' + D.qs.length + ' / ' + FULL + (bad ? ' · ⚠️ ' + bad : '') : '';
+  if (!D.qs.length) { $('#review').innerHTML = '<div class="empty"><b>📝</b><div style="color:var(--tx);font-weight:700">No questions yet</div><div>Add some in Step 2 and they appear here.</div></div>'; return; }
+  var h = '<div class="sum">' + TOP.map(function (t, i) { var n = cnt[i + 1] || 0; return '<span class="tag ' + (n === PER_UNIT ? 'full' : n > PER_UNIT ? 'over' : '') + '">' + t.i + ' ' + esc(t.k || t.n) + ' <b>' + n + '</b></span>'; }).join('') + (cnt[0] ? '<span class="tag over">⚠️ No unit <b>' + cnt[0] + '</b></span>' : '') + '</div>' +
+    '<div class="row" style="margin-bottom:12px"><button class="btn g s" data-x="sort">↕ Sort by unit</button><button class="btn g s" data-x="clear" style="color:#ef4444">🗑 Clear all</button></div>';
+  h += D.qs.map(function (q, i) {
+    var w = problems(q); if (dup[i]) w.push('same question as #' + dup[i]);
+    var t = TOP[q.u - 1];
+    return '<div class="qi ' + (w.length ? 'bad' : '') + '"><span class="n">' + (i + 1) + '</span><div class="b"><div class="mu" style="font-size:.74rem">' + (t ? t.i + ' ' + esc(t.n) : 'No unit') + (q.c ? ' · ' + esc(q.c) : '') + '</div>' +
+      '<div class="t">' + esc(plain(q.q, 140) || '(empty question)') + '</div>' +
+      (q.a >= 0 && q.o[q.a] ? '<div class="a">✓ ' + 'ABCD'.charAt(q.a) + '. ' + esc(plain(q.o[q.a], 60)) + '</div>' : '') + (w.length ? '<div class="w">⚠️ ' + esc(w.join(' · ')) + '</div>' : '') + '</div>' +
+      '<div class="x"><button class="iconb" data-x="edit" data-i="' + i + '" aria-label="Edit">✏️</button><button class="iconb" data-x="del" data-i="' + i + '" aria-label="Delete">🗑</button>' +
+      '<span class="row" style="gap:4px;flex-wrap:nowrap"><button class="iconb" data-x="up" data-i="' + i + '" aria-label="Move up">↑</button><button class="iconb" data-x="dn" data-i="' + i + '" aria-label="Move down">↓</button></span></div></div>';
+  }).join('');
+  $('#review').innerHTML = h;
+}
+$('#review').addEventListener('click', function (e) {
+  var b = e.target.closest('[data-x]'); if (!b) return; var i = +b.dataset.i, x = b.dataset.x, qs = D.qs, t;
+  if (x === 'edit') return editQ(i);
+  if (x === 'del') { if (!confirm('Delete question ' + (i + 1) + '?')) return; if (editing === i) cancelEdit(); qs.splice(i, 1); if (editing > i) editing--; }
+  else if (x === 'up' && i > 0) { t = qs[i]; qs[i] = qs[i - 1]; qs[i - 1] = t; if (editing === i) editing--; else if (editing === i - 1) editing++; }
+  else if (x === 'dn' && i < qs.length - 1) { t = qs[i]; qs[i] = qs[i + 1]; qs[i + 1] = t; if (editing === i) editing++; else if (editing === i + 1) editing--; }
+  else if (x === 'sort') { if (editing >= 0) cancelEdit(); D.qs = qs.map(function (q, j) { return { q: q, j: j }; }).sort(function (a, b) { return (a.q.u || 99) - (b.q.u || 99) || a.j - b.j; }).map(function (z) { return z.q; }); }
+  else if (x === 'clear') { if (!confirm('Remove all ' + qs.length + ' questions from this page?')) return; cancelEdit(); D.qs = []; }
+  got.paper = false; saveDraft(); renderAll();
+});
+
+/* ---------- step 4: publish ---------- */
+function loadList(text, src) {
+  var w = {}; new Function('window', text)(w);
+  if (!Array.isArray(w.PAPER_FILES)) throw new Error('no list');
+  FILES = w.PAPER_FILES.map(String); FILES_SRC = src; got.list = false; renderPublish();
+}
+function renderPublish() {
+  var el = $('#publish'), n = D.qs.length, bad = D.qs.filter(function (q) { return problems(q).length; }).length, name = fileName(), ready = n > 0 && !bad, h = '';
+  if (!n) { el.innerHTML = '<p class="mu">Add questions first — then your files are made here.</p>'; return; }
+  h += '<div class="okline">' + (bad ? '⚠️ Fix ' + bad + ' question' + (bad === 1 ? '' : 's') + ' in Step 3 first.' : '✅ ' + n + ' question' + (n === 1 ? '' : 's') + ' · ' + esc(paperLabel(D.year, D.session, D.day, D.shift))) + '</div>';
+  if (!bad && n !== FULL) h += '<p class="mu" style="margin-top:6px">ℹ️ A full paper has ' + FULL + ' questions — you have ' + n + '. That is fine for a partial paper.</p>';
+  h += '<div class="sep"></div><b>File 1 · the paper</b><p class="mu" style="margin:4px 0 10px">Upload it into the <code>data/papers/</code> folder on your site.</p>' +
+    '<button class="btn" id="dlPaper" ' + (ready ? '' : 'disabled') + '>⬇ Download ' + esc(name) + (got.paper ? ' ✔' : '') + '</button>';
+  h += '<div class="sep"></div><b>File 2 · the paper list</b><p class="mu" style="margin:4px 0 10px">Tells the site which papers exist. Upload it into the <code>data/</code> folder (replace the old one).</p>';
+  if (FILES === null) {
+    h += '<p class="msg bad" style="margin-top:0">I couldn\'t read your current list automatically (normal when this page is opened from your computer). Choose it, so nothing already on your site gets lost:</p>' +
+      '<div class="row"><button class="btn g s" id="pjsPick">📂 Choose my current papers.js</button><button class="btn g s" id="pjsNew">It\'s a new site — start a list</button></div>';
+  } else {
+    var list = FILES.slice(); if (list.indexOf(name) < 0) list.push(name);
+    h += '<p class="mu">' + (FILES_SRC === 'site' ? '✅ Read from your site' : FILES_SRC === 'file' ? '✅ Read from the file you chose' : 'Starting a new list') + ' · the new list will have <b style="color:var(--tx)">' + list.length + '</b> paper' + (list.length === 1 ? '' : 's') + (FILES.indexOf(name) >= 0 ? ' (this paper is already listed — the new file simply replaces it)' : '') + ':</p>' +
+      '<div class="chiprow">' + list.map(function (f) { return '<span class="tag" ' + (f === name ? 'style="border-color:var(--a)"' : '') + '>' + esc(f) + (f === name ? ' · new' : '<button data-rm="' + esc(f) + '" aria-label="Remove ' + esc(f) + ' from the list">✕</button>') + '</span>'; }).join('') + '</div>' +
+      '<div class="row" style="margin-top:12px"><button class="btn" id="dlList" ' + (ready ? '' : 'disabled') + '>⬇ Download papers.js' + (got.list ? ' ✔' : '') + '</button><button class="btn g s" id="pjsPick">Use a different list</button></div>' +
+      '<p class="mu" style="margin-top:8px">Prefer editing by hand? Add this line to <code>PAPER_FILES</code>: <code>\'' + esc(name) + '\',</code></p>';
+  }
+  h += '<div class="sep"></div><b>Then</b><ol class="steps"><li>Upload <code>' + esc(name) + '</code> → <code>data/papers/</code></li><li>Upload <code>papers.js</code> → <code>data/</code> (replace)</li><li>Open your site and refresh — the new paper is in the year dropdown.</li></ol>' +
+    '<p class="mu" style="margin-top:10px">Tip: add <code>?check</code> to your site address (e.g. <code>yoursite.com/?check</code>) to see any mistakes in your paper files.</p>' +
+    (got.paper && got.list ? '<div class="row" style="margin-top:14px"><button class="btn g" id="newPaper">＋ Start another paper</button></div>' : '');
+  el.innerHTML = h;
+}
+$('#publish').addEventListener('click', function (e) {
+  var b = e.target.closest('button'); if (!b) return;
+  if (b.id === 'dlPaper') { download(fileName(), makePaperJs()); got.paper = true; renderPublish(); }
+  else if (b.id === 'dlList') { var l = FILES.slice(); if (l.indexOf(fileName()) < 0) l.push(fileName()); download('papers.js', makePapersJs(l)); got.list = true; renderPublish(); }
+  else if (b.id === 'pjsPick') $('#pjsIn').click();
+  else if (b.id === 'pjsNew') { FILES = []; FILES_SRC = 'new'; renderPublish(); }
+  else if (b.dataset.rm) { if (confirm('Remove ' + b.dataset.rm + ' from the list? (The file itself stays on your server; the paper just stops showing on the site.)')) { FILES = FILES.filter(function (f) { return f !== b.dataset.rm; }); got.list = false; renderPublish(); } }
+  else if (b.id === 'newPaper') { if (!confirm('Start a new, empty paper? (Make sure you uploaded both files first.)')) return; D.qs = []; D.day = Math.min(20, D.day + 1); got = { paper: false, list: false }; cancelEdit(); syncDetails(); saveDraft(); renderAll(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+});
+$('#pjsIn').addEventListener('change', function (e) {
+  var f = e.target.files[0]; if (!f) return; var r = new FileReader();
+  r.onload = function () { try { loadList(String(r.result), 'file'); } catch (x) { alert('That does not look like a papers.js file (it should contain window.PAPER_FILES = [ … ]).'); } }; r.readAsText(f); e.target.value = '';
+});
+
+/* ---------- draft bar + start ---------- */
+function renderAll() { renderReview(); renderPublish(); }
+function draftBar() {
+  var d; try { d = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null'); } catch (e) { d = null; }
+  if (!d || !d.qs || !d.qs.length) return;
+  $('#draftBar').innerHTML = '<div class="card hint"><span><b>📝 Unfinished draft found</b><br><span class="mu">' + d.qs.length + ' questions · ' + esc(paperLabel(d.year, d.session, d.day, d.shift)) + '</span></span><span class="row"><button class="btn s" id="dRestore">Restore</button><button class="btn g s" id="dDrop">Discard</button></span></div>';
+  $('#dRestore').onclick = function () { D = d; D.qs = d.qs.map(rowToQ); syncDetails(); $('#draftBar').innerHTML = ''; renderAll(); };
+  $('#dDrop').onclick = function () { try { localStorage.removeItem(DRAFT_KEY); } catch (e) {} $('#draftBar').innerHTML = ''; };
+}
+fillDetails(); buildOpts(); renderAll(); draftBar();
+try {
+  fetch('data/papers.js', { cache: 'no-store' }).then(function (r) { if (!r.ok) throw 0; return r.text(); }).then(function (t) { loadList(t, 'site'); }).catch(function () {});
+} catch (e) {}
+})();
+</script>
+</body>
+</html>
