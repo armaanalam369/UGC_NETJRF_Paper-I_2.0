@@ -1,56 +1,67 @@
 # Wise Choice · UGC NET JRF Paper I
 
-Only **3 files** matter. No folders, no lists, no file-naming rules.
+All files go in **one folder** (the main page of your GitHub repository). **No sub-folders.**
 
-| File | Who uses it | What it does |
+| File | Who uses it | What it is |
 |---|---|---|
-| `index.html` | **Students** | The practice site. It can only *read* questions. It has **no** way to add, edit or upload anything. |
-| `admin.html` | **You only** | The only place where questions are added / edited / deleted. It creates a new `papers.js` for you. |
-| `papers.js`  | the site | Holds **all** question papers. This is the one file that changes when you add questions. |
+| `index.html` | **Students** | The practice site. Students can only *read* questions — it has **no** way to add, edit or upload anything. |
+| `style.css` | the site | Design. |
+| `config.js` | the site | Exam rules, the 10 units, shift timings, quotes. (Rarely changed.) |
+| `app.js` | the site | The student app's code. |
+| `papers.js` | the site | **All** question papers. The only file that changes when you add questions — and **admin.html updates it for you.** |
+| `admin.html` | **You only** | The only place where questions are added, edited or deleted. |
+| `logo.png` | the site | Your logo (optional). |
 
-Also put your `logo.png` next to them (optional — the site works without it).
-
----
-
-## First-time setup (about 3 minutes)
-1. In your GitHub repository, tap **Add file → Upload files**.
-2. Choose `index.html`, `admin.html`, `papers.js` (and `logo.png`). Upload them to the **main page of the repository — not inside any folder**.
-3. Tap **Commit changes**. Wait about a minute.
-4. Open `https://YOURNAME.github.io/` (or `…/REPOSITORY/`). The site appears.
-
-Old folders (`css`, `js`, `data`) and old files from earlier versions are **not used any more**. You may delete them or leave them.
+(No `manifest.js` is needed any more.)
 
 ---
 
-## Adding questions (every time)
-1. Open `https://YOURNAME.github.io/admin.html`.
-2. **Step 1 — Load your papers.** It loads your current `papers.js` by itself. (If it says it can't, tap *Choose papers.js* or *From my site address*.) Always do this first, so the papers already on your site are kept.
-3. **Step 2 — New paper.** Choose year, session, day and shift. Add questions:
-   - **Paste / CSV** — tap *Excel template*, fill it in, copy the rows and paste (or choose the CSV file), or
-   - **Type one** — fill the form, tap the letter of the correct option, tap *Add question*, or
-   - **Old file** — bring in a paper from an old single-paper `.js` file.
-   Anything marked ⚠️ needs fixing (tap ✏️). Then tap **Save this paper to my list**.
-   You can also **✏️ Edit** or **🗑 delete** any paper already on your site.
-4. **Step 3 — Publish.** Tap **Download papers.js** (or **Copy papers.js**).
-5. Put it on your site:
-   - **Computer:** GitHub → *Add file → Upload files* → drop `papers.js` → *Commit changes* (it replaces the old one).
-   - **Phone:** tap *Copy papers.js* → GitHub → tap `papers.js` → ✏️ → select all, delete → paste → *Commit changes*.
-   - If the downloaded file is called `papers (1).js`, rename it to `papers.js` first.
-6. Wait about a minute, refresh the site. The new paper is in the year dropdown.
+## One-time setup (about 10 minutes)
 
-Nothing goes live until you upload `papers.js` — admin.html cannot change your site by itself.
+### Part A — put the files on GitHub
+1. Open your repository on GitHub → **Add file → Upload files**.
+2. Select **all the files above at once** (`index.html`, `admin.html`, `style.css`, `config.js`, `app.js`, `papers.js`, `logo.png`) → **Commit changes**. Don't create or use any folder.
+3. Wait a minute and open your site. Students now see the practice site.
+
+Old folders/files from earlier versions (`css/`, `js/`, `data/`, `manifest.js`…) are no longer used. Leave or delete them.
+
+### Part B — connect admin to your site (so Publish works)
+1. Open `https://YOURNAME.github.io/admin.html` (or open `admin.html` from your phone's Downloads).
+2. In **Step 1**, type your repository (for example `yourname/yourname.github.io`).
+3. Create a token — it's free and takes 2 minutes:
+   - Open **github.com/settings/personal-access-tokens/new**
+   - Token name: `Wise Choice admin` · Expiration: 1 year
+   - **Repository access → Only select repositories** → choose your site's repository
+   - **Permissions → Repository permissions → Contents → Read and write**
+   - **Generate token**, copy it (starts with `github_pat_`)
+4. Paste the token in admin and tap **Connect**.
+   Admin shows which site files are in your repository (✅ / ❌). If any are missing, tap **Upload site files** and choose them — admin uploads them for you.
+
+The token stays on **your** device only. Without it, nobody can publish.
+
+---
+
+## Adding a paper (every time) — 4 taps
+1. Open `admin.html` (it reconnects by itself and loads your current papers).
+2. **New paper** → choose **year, June/December, day, shift** → add the questions:
+   - paste rows from Excel (tap *Excel template* for the format) or choose a CSV, **or**
+   - type one at a time (tap the letter of the right answer), **or**
+   - bring in an old paper file.
+   Fix anything marked ⚠️, then **Save this paper to my list**.
+3. **🚀 Publish to my site.**
+4. Wait about a minute and refresh your site. The paper is in the year dropdown.
+
+You can also **✏️ Edit** or **🗑 Delete** any paper that is already on the site, then Publish again.
 
 ---
 
-## Keeping admin private
-- Students only know `index.html`; nothing links to `admin.html`, and search engines are told to ignore it.
-- Even if someone finds it, it can't change anything: only a person logged in to **your GitHub** can publish.
-- If you don't want it online at all, **don't upload it** — keep `admin.html` on your phone/computer and open it there. Use *Choose papers.js* (or *From my site address*) in Step 1.
-
----
+## Who can do what
+- **Students** open `index.html`: they can only practise. There is no add/edit/upload anywhere on it, and nothing links to admin.
+- **You** open `admin.html`: add/edit/delete papers. It is hidden from search engines. Even if someone finds the page, **they cannot publish without your GitHub token.**
 
 ## If something looks wrong
-- **Site shows "Question papers could not be loaded"** → `papers.js` is missing or not in the same place as `index.html`. Upload it to the main page of the repository.
-- **A new paper doesn't show** → you probably didn't upload the new `papers.js`, or the browser has the old one: wait a minute and refresh (or open in a private tab).
-- **Something disappeared** → you uploaded a `papers.js` made from an empty list. Admin warns you about this. Load your last good `papers.js` in Step 1 and publish again.
-- Open `https://YOURNAME.github.io/papers.js` in a browser — it should show text starting with `window.WC_PAPERS`. If it says 404, it isn't uploaded in the right place.
+- The student site checks its own files. If one is missing or from an older set, it shows a list such as `✅ style.css  ❌ app.js` — upload the ❌ file again.
+- A new paper doesn't show: wait a minute, then refresh (or open in a private tab).
+- Publishing says the token isn't accepted: create a new token (Part B step 3) and connect again.
+- Don't use *Start empty* in admin unless you really want to wipe all papers; admin warns you before publishing it.
+- Not using GitHub? In admin open **“Other ways to publish”**: download or copy `papers.js` and upload it yourself.

@@ -379,6 +379,8 @@ window.QUOTES = [
   'Be patient with the syllabus, be strict with your schedule.'
 ];
 
+window.WC_VERSION = '5.0';   /* index.html uses this to check that all files belong together */
+
 </script>
 </head>
 <body>
@@ -393,13 +395,13 @@ window.QUOTES = [
     <p class="mu">This is the <b style="color:var(--tx)">only</b> place where questions are added, edited or deleted. Students use <code>index.html</code>, which has no editing tools.</p>
     <div class="role">
       <div><b>👩‍🎓 index.html · students</b>Practise and take tests. Can only <i>read</i> questions.</div>
-      <div><b>🛠 admin.html · you</b>Add / edit / delete papers, then download one file: <code>papers.js</code>.</div>
+      <div><b>🛠 admin.html · you</b>Add / edit / delete papers, then press <b>Publish</b>. That's all.</div>
     </div>
   </section>
 
   <div id="draftBar"></div>
 
-  <div class="step"><i>1</i>Load the papers that are on your site</div>
+  <div class="step"><i>1</i>Connect your site <span class="mu" style="font-weight:600">(one time)</span></div>
   <div class="card" id="loadCard"></div>
 
   <div class="step"><i>2</i>Add or edit papers</div>
@@ -468,12 +470,13 @@ window.QUOTES = [
   <div class="step"><i>3</i>Publish</div>
   <div class="card" id="publish"></div>
 
-  <p class="mu" style="text-align:center;margin-top:22px">This page <b>cannot</b> change your live site by itself — nothing goes live until <i>you</i> upload <code>papers.js</code>. It is not linked from the student site and not indexed by search engines.</p>
+  <p class="mu" style="text-align:center;margin-top:22px">Only someone with <b>your GitHub token</b> can publish — the token is saved on <i>your</i> device only, never in this file. This page is not linked from the student site and is hidden from search engines.</p>
 </main>
 
 <input type="file" id="csvIn" accept=".csv,.tsv,.txt,text/csv,text/plain" style="display:none">
 <input type="file" id="fileIn" accept=".js,.json,.txt,text/javascript,application/json" style="display:none">
 <input type="file" id="pjsIn" accept=".js,.txt,text/javascript" style="display:none">
+<input type="file" id="siteIn" multiple style="display:none">
 <div id="toast"></div>
 
 <script>
@@ -576,33 +579,132 @@ function readOldPaper(txt) {                 // an old single-paper .js file, or
   if (!res || !res.rows || !res.rows.length) throw new Error('empty'); return res;
 }
 
-/* ---------- step 1: load the papers already on the site ---------- */
+/* ---------- step 1: connect to GitHub + load the papers already on the site ---------- */
+var API = 'https://api.github.com', GH = null, loadedSha = '', files = null, busy = '', ghErr = '';
+try { API = localStorage.getItem('wc_api') || API; GH = JSON.parse(localStorage.getItem('wc_gh') || 'null'); } catch (e) {}
+var REQUIRED = ['index.html', 'style.css', 'config.js', 'app.js', 'papers.js'];
+
+function ghReq(path, opt) {
+  opt = opt || {}; opt.cache = 'no-store';
+  opt.headers = Object.assign({ Authorization: 'Bearer ' + GH.token, Accept: 'application/vnd.github+json' }, opt.headers || {});
+  return fetch(API + path, opt);
+}
+function cpath(name) { return '/repos/' + GH.repo + '/contents/' + encodeURIComponent(name); }
+function bytesToB64(bytes) { var s = '', i; for (i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000)); return btoa(s); }
+function b64(str) { return bytesToB64(new TextEncoder().encode(str)); }
+function fromB64(s) { var bin = atob(s.replace(/\s/g, '')), a = new Uint8Array(bin.length), i; for (i = 0; i < bin.length; i++) a[i] = bin.charCodeAt(i); return new TextDecoder().decode(a); }
+function ghMsg(r) {
+  return r.status === 401 ? 'GitHub did not accept the token (it may be wrong or expired). Make a new one and connect again.'
+    : r.status === 403 ? 'The token is not allowed to change this repository. When creating it, set “Contents” to “Read and write”.'
+    : r.status === 404 ? 'Repository not found. Check the name (yourname/repository) and that the token was given access to it.'
+    : 'GitHub replied with an error (' + r.status + ').';
+}
+async function ghGet(name) {                       // → { sha, text }, or null when the file does not exist
+  var q = cpath(name) + '?ref=' + encodeURIComponent(GH.branch), r = await ghReq(q);
+  if (r.status === 404) return null; if (!r.ok) throw new Error(ghMsg(r));
+  var j = await r.json(), text;
+  if (j.content && j.encoding === 'base64') text = fromB64(j.content);
+  else { var rr = await ghReq(q, { headers: { Accept: 'application/vnd.github.raw+json' } }); text = await rr.text(); }
+  return { sha: j.sha, text: text };
+}
+async function ghSha(name) { var r = await ghReq(cpath(name) + '?ref=' + encodeURIComponent(GH.branch)); if (r.status === 404) return ''; if (!r.ok) throw new Error(ghMsg(r)); return (await r.json()).sha; }
+async function ghPut(name, content64, msg, sha) {
+  var body = { message: msg, content: content64, branch: GH.branch }; if (sha) body.sha = sha;
+  var r = await ghReq(cpath(name), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  if (!r.ok) throw new Error(ghMsg(r) + (r.status === 409 || r.status === 422 ? ' (The file changed in the meantime — reload your papers and try again.)' : ''));
+  return (await r.json()).content;
+}
+function siteUrl() {
+  if (!GH) return ''; var p = GH.repo.split('/'); return 'https://' + p[0].toLowerCase() + '.github.io/' + (p[1].toLowerCase() === p[0].toLowerCase() + '.github.io' ? '' : p[1] + '/');
+}
+function guessRepo() {
+  var h = location.hostname, seg = location.pathname.split('/')[1] || '';
+  if (/\.github\.io$/i.test(h)) { var o = h.split('.')[0]; return o + '/' + (seg && !/\.\w+$/.test(seg) ? seg : o + '.github.io'); }
+  return '';
+}
+async function refreshFiles() { try { var r = await ghReq('/repos/' + GH.repo + '/contents?ref=' + encodeURIComponent(GH.branch)); files = r.ok ? (await r.json()).map(function (x) { return x.name; }) : null; } catch (e) { files = null; } }
+async function loadFromGitHub() {
+  var f = await ghGet('papers.js');
+  if (!f) { setCollection([], 'ghnew'); return; }
+  try { var list = parseCollection(f.text); loadedSha = f.sha; setCollection(list, 'site'); }
+  catch (e) { if (confirm('The papers.js on your site is not in the new format. Start with an empty list? (Publishing will replace it.)')) { loadedSha = f.sha; setCollection([], 'new'); } }
+}
+async function connect(repo, token) {
+  repo = String(repo).trim().replace(/^https?:\/\/github\.com\//i, '').replace(/\.git$/i, '').replace(/\/+$/, '');
+  if (!/^[\w.-]+\/[\w.-]+$/.test(repo)) throw new Error('Type the repository like  yourname/yourname.github.io');
+  if (!String(token).trim()) throw new Error('Paste your access token.');
+  GH = { repo: repo, token: String(token).trim(), branch: 'main' };
+  var r = await ghReq('/repos/' + repo); if (!r.ok) { GH = null; throw new Error(ghMsg(r)); }
+  var j = await r.json(); GH.branch = j.default_branch || 'main';
+  if (j.permissions && j.permissions.push === false) { GH = null; throw new Error('This token can only read the repository. Create it with “Contents: Read and write”.'); }
+  try { localStorage.setItem('wc_gh', JSON.stringify(GH)); } catch (e) {}
+  await refreshFiles(); await loadFromGitHub();
+}
+async function uploadSiteFiles(list) {
+  var i, f, buf, cur;
+  try {
+    for (i = 0; i < list.length; i++) {
+      f = list[i]; busy = 'Uploading ' + (i + 1) + ' of ' + list.length + ': ' + f.name; renderLoad();
+      buf = new Uint8Array(await f.arrayBuffer()); cur = await ghSha(f.name);
+      await ghPut(f.name, bytesToB64(buf), 'Upload ' + f.name, cur);
+    }
+    toast('✅ Uploaded ' + list.length + ' file' + (list.length === 1 ? '' : 's'));
+  } catch (e) { alert(e.message); }
+  busy = ''; await refreshFiles(); renderLoad();
+}
 function setCollection(list, src) { COL = list; SRC = src; sortCol(); dirty = false; saved.dl = false; closeEditor(true); saveDraft(); renderAll(); }
 function loadText(text, src) {
   try { setCollection(parseCollection(text), src); toast('✅ Loaded ' + COL.length + ' paper' + (COL.length === 1 ? '' : 's')); }
   catch (e) { alert(e.message === 'single' ? 'That is an old single-paper file, not your site\'s papers.js.\nOpen the paper inside "New paper" → "Old file" instead.' : 'That does not look like a papers.js file made by this tool.'); }
 }
 function fetchSite(url, quiet) {
-  return fetch(url, { cache: 'no-store' }).then(function (r) { if (!r.ok) throw 0; return r.text(); }).then(function (t) { loadText(t, 'site'); return true; }).catch(function () { if (!quiet) alert('Could not load papers.js from that address.\nCheck the address (for example https://yourname.github.io/) and your internet connection, or choose the file from your device instead.'); return false; });
+  return fetch(url, { cache: 'no-store' }).then(function (r) { if (!r.ok) throw 0; return r.text(); }).then(function (t) { loadText(t, 'site'); return true; }).catch(function () { return false; });
 }
 function renderLoad() {
-  var st = SRC === 'site' ? '✅ Loaded from your site' : SRC === 'file' ? '✅ Loaded from the file you chose' : SRC === 'new' ? '🆕 Starting with an empty list' : (location.protocol === 'file:' ? '👇 First, load your current papers.js' : '⏳ Looking for papers.js next to this page…');
-  $('#loadCard').innerHTML = '<div class="okline">' + st + (SRC ? ' · ' + COL.length + ' paper' + (COL.length === 1 ? '' : 's') : '') + '</div>' +
-    (SRC ? '' : '<p class="mu" style="margin-top:6px">' + (location.protocol === 'file:' ? 'This page is opened from your device, so choose where your current papers are:' : 'If it is not found automatically, choose one of the options below:') + '</p>') +
-    '<div class="row" style="margin-top:12px"><button class="btn g s" id="lFile">📂 Choose papers.js</button><button class="btn g s" id="lSite">🌐 From my site address</button><button class="btn g s" id="lNew">🆕 Start empty</button></div>' +
-    '<p class="mu" style="margin-top:10px">Always load your current <code>papers.js</code> first, so the papers already on your site are kept when you publish.</p>';
+  var h = '', st;
+  if (GH) {
+    st = SRC === 'site' ? '✅ Loaded ' + COL.length + ' paper' + (COL.length === 1 ? '' : 's') + ' from your site' : SRC === 'ghnew' ? 'No papers on your site yet — your first paper will create papers.js' : SRC === 'file' ? '✅ Loaded from the file you chose' : SRC === 'new' ? '🆕 Starting with an empty list' : '⏳ Loading your papers…';
+    h += '<div class="okline">✅ Connected to <code>' + esc(GH.repo) + '</code></div><p class="mu" style="margin-top:6px">' + esc(st) + '</p>';
+    if (ghErr) h += '<p class="msg bad">⚠️ ' + esc(ghErr) + '</p>';
+    if (files) {
+      h += '<div class="lbl">Site files in your repository</div><div class="sum">' + REQUIRED.concat(['admin.html']).map(function (n) { var ok = files.indexOf(n) >= 0; return '<span class="tag ' + (ok ? 'full' : 'over') + '">' + (ok ? '✅' : '❌') + ' ' + n + '</span>'; }).join('') + '</div>';
+      if (REQUIRED.some(function (n) { return files.indexOf(n) < 0; })) h += '<p class="msg bad" style="margin-top:0">Some site files are missing. Tap “Upload site files” and choose them all at once.</p>';
+    }
+    h += '<div class="row" style="margin-top:12px">' + (busy ? '<span class="mu">⏳ ' + esc(busy) + '…</span>' : '<button class="btn g s" id="ghReload">↻ Reload papers</button><button class="btn g s" id="ghUpload">⬆ Upload site files</button><a class="btn g s" href="' + esc(siteUrl()) + '" target="_blank" rel="noopener">🌐 Open my site</a><button class="btn g s" id="ghDisc">Disconnect</button>') + '</div>';
+  } else {
+    st = SRC === 'site' ? '✅ Loaded ' + COL.length + ' paper' + (COL.length === 1 ? '' : 's') : SRC === 'file' ? '✅ Loaded from the file you chose · ' + COL.length + ' paper' + (COL.length === 1 ? '' : 's') : SRC === 'new' ? '🆕 Starting with an empty list' : '';
+    h += '<p class="mu" style="margin-bottom:12px">Connect once. After that, adding a paper is simply: <b style="color:var(--tx)">add the questions → press Publish</b>. Nothing to upload by hand.</p>' + (st ? '<div class="okline" style="margin-bottom:10px">' + esc(st) + '</div>' : '') +
+      '<div class="lbl" style="margin-top:0">Your GitHub repository</div><input class="in" id="ghRepo" value="' + esc(guessRepo()) + '" placeholder="yourname/yourname.github.io" autocapitalize="off" autocomplete="off" spellcheck="false">' +
+      '<div class="lbl">Access token</div><input class="in" id="ghTok" type="password" placeholder="github_pat_…" autocomplete="off">' +
+      (ghErr ? '<p class="msg bad">⚠️ ' + esc(ghErr) + '</p>' : '') +
+      '<div class="row" style="margin-top:12px"><button class="btn" id="ghConnect">' + (busy ? '⏳ Connecting…' : '🔗 Connect') + '</button></div>' +
+      '<details class="more"><summary>How do I get a token? (one time, about 2 minutes)</summary><ol class="steps">' +
+      '<li>Open <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener" style="color:var(--a)">github.com/settings/personal-access-tokens/new</a> (log in to GitHub).</li>' +
+      '<li><b>Token name:</b> Wise Choice admin. <b>Expiration:</b> 1 year.</li>' +
+      '<li><b>Repository access → Only select repositories</b> → choose your site\'s repository.</li>' +
+      '<li><b>Permissions → Repository permissions → Contents → Read and write.</b></li>' +
+      '<li>Tap <b>Generate token</b>, copy it (starts with <code>github_pat_</code>) and paste it above.</li></ol>' +
+      '<p class="mu" style="margin-top:8px">The token stays on this device only. Anyone without it cannot publish.</p></details>';
+  }
+  h += '<details class="more"><summary>Not using GitHub, or want to do it by hand?</summary><p class="mu" style="margin:8px 0">Load your current <code>papers.js</code> from your device, or start empty. At the end you can download or copy the new <code>papers.js</code> and upload it yourself.</p>' +
+    '<div class="row"><button class="btn g s" id="lFile">📂 Choose papers.js</button><button class="btn g s" id="lNew">🆕 Start empty</button></div></details>';
+  $('#loadCard').innerHTML = h;
 }
-$('#loadCard').addEventListener('click', function (e) {
+$('#loadCard').addEventListener('click', async function (e) {
   var b = e.target.closest('button'); if (!b) return;
   if (b.id === 'lFile') $('#pjsIn').click();
-  else if (b.id === 'lSite') {
-    var a = prompt('Your site address (for example https://yourname.github.io/ or https://yourname.github.io/repo/):', localStorage.getItem(ADDR_KEY) || ''); if (!a) return;
-    a = a.trim().replace(/\/?(index\.html|admin\.html|papers\.js)?\/?$/i, '') + '/papers.js'; if (!/^https?:\/\//i.test(a)) a = 'https://' + a;
-    try { localStorage.setItem(ADDR_KEY, a.replace(/\/papers\.js$/, '')); } catch (x) {} fetchSite(a);
-  }
   else if (b.id === 'lNew') { if (COL.length && !confirm('Discard the papers you have loaded and start with an empty list?')) return; setCollection([], 'new'); }
+  else if (b.id === 'ghConnect') {
+    if (busy) return; busy = 'connecting'; ghErr = ''; var repo = $('#ghRepo').value, tok = $('#ghTok').value; renderLoad();
+    try { await connect(repo, tok); } catch (x) { ghErr = x.message || String(x); GH = null; }
+    busy = ''; renderAll();
+  }
+  else if (b.id === 'ghReload') { if (dirty && !confirm('You have changes that are not published. Reload and lose them?')) return; ghErr = ''; try { await refreshFiles(); await loadFromGitHub(); } catch (x) { ghErr = x.message; } renderAll(); }
+  else if (b.id === 'ghUpload') $('#siteIn').click();
+  else if (b.id === 'ghDisc') { if (!confirm('Disconnect from GitHub on this device? (You can connect again with your token.)')) return; GH = null; files = null; try { localStorage.removeItem('wc_gh'); } catch (x) {} renderAll(); }
 });
 $('#pjsIn').addEventListener('change', function (e) { var f = e.target.files[0]; if (!f) return; var r = new FileReader(); r.onload = function () { loadText(String(r.result), 'file'); }; r.readAsText(f); e.target.value = ''; });
+$('#siteIn').addEventListener('change', function (e) { var l = Array.prototype.slice.call(e.target.files); e.target.value = ''; if (l.length) uploadSiteFiles(l); });
 
 /* ---------- step 2: list of papers ---------- */
 function renderList() {
@@ -774,23 +876,41 @@ $('#review').addEventListener('click', function (e) {
 });
 
 /* ---------- step 3: publish ---------- */
+var pub = { busy: false, done: false, err: '' };
 function renderPublish() {
   var el = $('#publish'), nq = COL.reduce(function (s, p) { return s + p.qs.length; }, 0), bad = COL.some(function (p) { return p.qs.some(function (q) { return problems(q).length; }); });
-  if (!SRC) { el.innerHTML = '<p class="mu">Do Step 1 first — then your file is made here.</p>'; return; }
-  var ok = COL.length > 0 && !bad && editIdx === -2, h = '<div class="okline">' + (bad ? '⚠️ Some papers have questions that need fixing.' : editIdx !== -2 ? '✏️ Save or cancel the paper you are editing first.' : COL.length ? '✅ ' + COL.length + ' paper' + (COL.length === 1 ? '' : 's') + ' · ' + nq + ' questions — ready' : 'Add a paper first.') + '</div>';
-  if (SRC === 'new') h += '<p class="msg bad">⚠️ You started with an empty list. The file below contains <b>only</b> the papers listed in Step 2 and will <b>replace everything</b> on your site.</p>';
-  h += '<div class="row" style="margin-top:14px"><button class="btn" id="dlJs" ' + (ok ? '' : 'disabled') + '>⬇ Download papers.js' + (saved.dl ? ' ✔' : '') + '</button><button class="btn g" id="cpJs" ' + (ok ? '' : 'disabled') + '>📋 Copy papers.js</button></div>' +
-    '<div class="sep"></div><b>Then put it on your site</b>' +
-    '<p class="mu" style="margin-top:8px"><b style="color:var(--tx)">On a computer</b> — your repository on GitHub → <i>Add file → Upload files</i> → drop <code>papers.js</code> → <i>Commit changes</i>. It replaces the old one.</p>' +
-    '<p class="mu" style="margin-top:8px"><b style="color:var(--tx)">On a phone</b> — tap <b>Copy papers.js</b> above. Open your repository → tap <code>papers.js</code> → tap ✏️ → select all and delete → paste → <i>Commit changes</i>.</p>' +
-    '<p class="mu" style="margin-top:8px">If your browser saved the file as <code>papers (1).js</code>, rename it to <code>papers.js</code> before uploading. Wait about a minute, then refresh your site.</p>';
+  if (!SRC) { el.innerHTML = '<p class="mu">Do Step 1 first.</p>'; return; }
+  var ok = COL.length > 0 && !bad && editIdx === -2 && !pub.busy;
+  var h = '<div class="okline">' + (bad ? '⚠️ Some papers have questions that need fixing.' : editIdx !== -2 ? '✏️ Save or cancel the paper you are editing first.' : COL.length ? '✅ ' + COL.length + ' paper' + (COL.length === 1 ? '' : 's') + ' · ' + nq + ' questions — ready' : 'Add a paper first.') + '</div>';
+  if (SRC === 'new') h += '<p class="msg bad">⚠️ You started with an empty list. Publishing will contain <b>only</b> the papers listed in Step 2 and <b>replace everything</b> on your site.</p>';
+  if (GH) {
+    h += '<div class="row" style="margin-top:14px"><button class="btn" id="pubGh" ' + (ok ? '' : 'disabled') + '>' + (pub.busy ? '⏳ Publishing…' : '🚀 Publish to my site') + '</button></div>';
+    if (pub.done) h += '<p class="msg ok">✅ Published! Your site updates in about a minute. <a href="' + esc(siteUrl()) + '" target="_blank" rel="noopener" style="color:var(--a);font-weight:700">Open my site</a> — if you don\'t see the change, refresh once.</p>';
+    if (pub.err) h += '<p class="msg bad">⚠️ ' + esc(pub.err) + '</p>';
+  } else h += '<p class="mu" style="margin-top:10px">Connect to GitHub in Step 1 to publish with one tap — or use the manual way below.</p>';
+  h += '<details class="more"' + (GH ? '' : ' open') + '><summary>Other ways to publish (download / copy)</summary>' +
+    '<div class="row" style="margin-top:10px"><button class="btn g s" id="dlJs" ' + (ok ? '' : 'disabled') + '>⬇ Download papers.js' + (saved.dl ? ' ✔' : '') + '</button><button class="btn g s" id="cpJs" ' + (ok ? '' : 'disabled') + '>📋 Copy papers.js</button></div>' +
+    '<p class="mu" style="margin-top:10px">Then, on GitHub: open your repository → <i>Add file → Upload files</i> → choose <code>papers.js</code> → <i>Commit changes</i>. (If it was saved as <code>papers (1).js</code>, rename it first.)</p></details>';
   el.innerHTML = h;
+}
+async function publishGh() {
+  var nq = COL.reduce(function (s, p) { return s + p.qs.length; }, 0);
+  pub = { busy: true, done: false, err: '' }; renderPublish();
+  try {
+    var cur = await ghGet('papers.js');
+    if (cur && SRC === 'new' && !confirm('Your site already has a papers.js. Publishing will REPLACE every paper on your site with the ' + COL.length + ' shown here.\n\nContinue?')) throw 'cancel';
+    if (cur && SRC !== 'new' && loadedSha && cur.sha !== loadedSha && !confirm('The papers on your site changed since you loaded them (maybe edited somewhere else). Publishing will overwrite those changes.\n\nContinue?')) throw 'cancel';
+    var res = await ghPut('papers.js', b64(makePapersJs()), 'Update papers: ' + COL.length + ' paper' + (COL.length === 1 ? '' : 's') + ', ' + nq + ' questions', cur && cur.sha);
+    loadedSha = res.sha; SRC = 'site'; dirty = false; saveDraft(); pub = { busy: false, done: true, err: '' }; refreshFiles().then(renderLoad);
+  } catch (e) { pub = { busy: false, done: false, err: e === 'cancel' ? '' : (e.message || String(e)) }; }
+  renderAll();
 }
 $('#publish').addEventListener('click', function (e) {
   var b = e.target.closest('button'); if (!b || b.disabled) return;
-  if (b.id === 'dlJs') { download('papers.js', makePapersJs()); dirty = false; saved.dl = true; saveDraft(); renderPublish(); }
+  if (b.id === 'pubGh') publishGh();
+  else if (b.id === 'dlJs') { download('papers.js', makePapersJs()); dirty = false; saved.dl = true; saveDraft(); renderPublish(); }
   else if (b.id === 'cpJs') {
-    var t = makePapersJs(), done = function () { dirty = false; saveDraft(); toast('📋 Copied — now paste it into papers.js on GitHub'); };
+    var t = makePapersJs(), done = function () { dirty = false; saveDraft(); toast('📋 Copied — paste it into papers.js on GitHub'); };
     if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(done, function () { fallbackCopy(t, done); }); else fallbackCopy(t, done);
   }
 });
@@ -804,12 +924,15 @@ function draftBar() {
   if (!d || !d.dirty || !d.COL) return false;
   $('#draftBar').innerHTML = '<div class="card hint"><span><b>📝 Unpublished changes from last time</b><br><span class="mu">' + d.COL.length + ' papers · not downloaded yet</span></span><span class="row"><button class="btn s" id="dRestore">Restore</button><button class="btn g s" id="dDrop">Discard</button></span></div>';
   $('#dRestore').onclick = function () { COL = d.COL; SRC = d.SRC || 'file'; dirty = true; $('#draftBar').innerHTML = ''; closeEditor(true); renderAll(); if (d.D && d.editIdx > -2) { D = d.D; editIdx = d.editIdx; openEditor(editIdx === -1 ? 'New paper' : 'Edit paper'); } };
-  $('#dDrop').onclick = function () { try { localStorage.removeItem(DRAFT_KEY); } catch (e) {} $('#draftBar').innerHTML = ''; if (location.protocol !== 'file:') fetchSite('papers.js', true); };
+  $('#dDrop').onclick = function () { try { localStorage.removeItem(DRAFT_KEY); } catch (e) {} $('#draftBar').innerHTML = ''; startLoad(); };
   return true;
 }
+function startLoad() {
+  if (GH) { refreshFiles().then(renderLoad); loadFromGitHub().catch(function (x) { ghErr = x.message || String(x); renderAll(); }); }
+  else if (location.protocol !== 'file:') fetchSite('papers.js', true);
+}
 fillDetails(); buildOpts(); renderAll();
-var hasDraft = draftBar();
-try { if (location.protocol !== 'file:' && !hasDraft) fetchSite('papers.js', true); } catch (e) {}
+if (!draftBar()) startLoad(); else if (GH) refreshFiles().then(renderLoad);
 })();
 </script>
 </body>
